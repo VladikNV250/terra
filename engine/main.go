@@ -1,23 +1,23 @@
 package main
 
 import (
-	"terracore/internal/perlin"
 	"syscall/js"
+	"terracore/internal/perlin"
 	"time"
 )
 
 const (
-	WorldWidth  = 512
-	WorldHeight = 512
-	Scale       = 100
-	Octaves     = 6
-	Persistence = 0.5
-	Amplitude   = 3.5
-	SeaLevel    = 110
+	WorldWidth  = 1024
+	WorldHeight = 1024
+	DefaultScale       = 200
+	DefaultOctaves     = 6
+	DefaultPersistence = 0.5
+	DefaultAmplitude   = 3.5
+	DefaultSeaLevel    = 110
 )
 
-func paintPixel(noise float64) (r, g, b uint8) {
-	raw := noise * Amplitude
+func paintPixel(noise float64, amplitude float64, seaLevel uint8) (r, g, b uint8) {
+	raw := noise * amplitude
 	if raw > 1.0 {
 		raw = 1.0
 	}
@@ -25,18 +25,18 @@ func paintPixel(noise float64) (r, g, b uint8) {
 		raw = -1.0
 	}
 	v := uint8((raw + 1.0) * 0.5 * 255)
-	if v < SeaLevel {
-		if v < SeaLevel-30 {
+	if v < seaLevel {
+		if v < seaLevel-30 {
 			r, g, b = 30, 60, 150
 		} else {
 			r, g, b = 70, 120, 200
 		}
 	} else {
-		if v < SeaLevel+15 {
+		if v < seaLevel+15 {
 			r, g, b = 210, 190, 130
-		} else if v < SeaLevel+60 {
+		} else if v < seaLevel+60 {
 			r, g, b = 80, 160, 80
-		} else if v < SeaLevel+100 {
+		} else if v < seaLevel+100 {
 			r, g, b = 130, 130, 130
 		} else {
 			r, g, b = 240, 240, 240
@@ -53,17 +53,48 @@ func main() {
 			seed = int64(args[0].Int())
 		}
 
+		scale := DefaultScale
+		if len(args) > 1 {
+			scale = int(args[1].Int())
+		}
+
+		octaves := DefaultOctaves
+		if len(args) > 2 {
+			octaves = int(args[2].Int())
+		}
+
+		persistence := DefaultPersistence
+		if len(args) > 3 {
+			persistence = float64(args[3].Float())
+		}
+
+		amplitude := DefaultAmplitude
+		if len(args) > 4 {
+			amplitude = float64(args[4].Float())
+		}
+
+		seaLevel := uint8(DefaultSeaLevel)
+		if len(args) > 5 {
+			if int(args[5].Int()) < 30 {
+				seaLevel = 30
+			} else if int(args[5].Int()) > 255 {
+				seaLevel = 255
+			} else {
+				seaLevel = uint8(args[5].Int())
+			}
+		}
+
 		p := perlin.New(seed)
 		size := WorldHeight * WorldWidth * 4
 		imageData := make([]uint8, size)
 
 		for y := 0; y < WorldHeight; y++ {
 			for x := 0; x < WorldWidth; x++ {
-				noiseX := float64(x) / float64(Scale)
-				noiseY := float64(y) / float64(Scale)
+				noiseX := float64(x) / float64(scale)
+				noiseY := float64(y) / float64(scale)
 				index := (y*WorldWidth + x) * 4
-				noise := p.FractalNoise(noiseX, noiseY, Octaves, Persistence)
-				r, g, b := paintPixel(noise)
+				noise := p.FractalNoise(noiseX, noiseY, octaves, persistence)
+				r, g, b := paintPixel(noise, amplitude, seaLevel)
 				imageData[index] = r
 				imageData[index+1] = g
 				imageData[index+2] = b

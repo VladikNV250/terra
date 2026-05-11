@@ -4,5 +4,12 @@ declare class Go {
 }
 
 interface Window {
-        generate: (seed?: number) => Uint8Array;
-    }
+    generate: (
+        seed?: number,
+        scale?: number,
+        octave?: number,
+        persistence?: number,
+        amplitude?: number,
+        seaLevel?: number,
+    ) => Uint8Array;
+}

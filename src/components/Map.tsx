@@ -1,10 +1,11 @@
 import { useEffect, useRef } from "react";
+import type { TerrainConfig } from "../types/terrain";
 
 interface Props {
-    seed: number;
+    terrainConfig: TerrainConfig;
 }
 
-export const Map = ({ seed }: Props) => {
+export const Map = ({ terrainConfig }: Props) => {
     const canvasRef = useRef<null | HTMLCanvasElement>(null);
 
     useEffect(() => {
@@ -16,17 +17,34 @@ export const Map = ({ seed }: Props) => {
         ).then((result) => {
             go.run(result.instance);
 
-            const pixels = window.generate(seed);
+            const pixels = window.generate(
+                terrainConfig.seed,
+                terrainConfig.scale,
+                terrainConfig.octave,
+                terrainConfig.persistence,
+                terrainConfig.amplitude,
+                terrainConfig.seaLevel
+            );
 
             const clampedImageData = new Uint8ClampedArray(pixels);
-            const imageData = new ImageData(clampedImageData, 512, 512);
+            const imageData = new ImageData(
+                clampedImageData,
+                terrainConfig.width,
+                terrainConfig.height,
+            );
 
             if (canvasRef.current) {
                 const ctx = canvasRef.current.getContext("2d");
                 ctx?.putImageData(imageData, 0, 0);
             }
         });
-    }, [seed]);
+    }, [terrainConfig]);
 
-    return <canvas ref={canvasRef} width={512} height={512} />;
+    return (
+        <canvas
+            ref={canvasRef}
+            width={terrainConfig.width}
+            height={terrainConfig.height}
+        />
+    );
 };
