@@ -6,6 +6,7 @@ import {
     type PixelsWorkerMessage,
     type ReadyWorkerMessage,
 } from "../types/worker";
+import { Flex } from "@radix-ui/themes";
 
 interface Props {
     terrainConfig: TerrainConfig;
@@ -68,10 +69,13 @@ export const Map = ({ terrainConfig }: Props) => {
     }, [terrainConfig, isReady]);
 
     return (
-        <canvas
-            ref={canvasRef}
-            width={terrainConfig.width}
-            height={terrainConfig.height}
-        />
+        <Flex justify="center" align="center" height="100%" overflow="hidden" className="aspect-square">
+            <canvas
+                className="max-w-full max-h-full object-contain "
+                ref={canvasRef}
+                width={terrainConfig.width}
+                height={terrainConfig.height}
+            />
+        </Flex>
     );
 };
