@@ -1,4 +1,3 @@
-
 self.importScripts("/wasm_exec.js");
 
 const go = new Go();
@@ -6,8 +5,6 @@ const go = new Go();
 WebAssembly.instantiateStreaming(fetch("/main.wasm"), go.importObject).then(
     (result) => {
         go.run(result.instance);
-        self.postMessage({ type: "READY" });
-
         self.onmessage = (e) => {
             const pixels = self.generate(
                 e.data.payload.seed,
@@ -18,9 +15,20 @@ WebAssembly.instantiateStreaming(fetch("/main.wasm"), go.importObject).then(
                 e.data.payload.seaLevel,
                 e.data.payload.width,
                 e.data.payload.height,
+                e.data.payload.startY,
+                e.data.payload.endY,
             );
 
-            self.postMessage({ type: "PIXELS", payload: pixels });
+            self.postMessage({
+                type: "PIXELS",
+                payload: {
+                    pixels,
+                    startY: e.data.payload.startY,
+                    endY: e.data.payload.endY,
+                },
+            });
         };
+
+        self.postMessage({ type: "READY" });
     },
 );

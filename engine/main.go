@@ -94,15 +94,28 @@ func main() {
 			height = int(args[7].Int())
 		}
 
+		startY := 0
+		if len(args) > 8 {
+			startY = int(args[8].Int())
+		}
+
+		endY := height
+		if len(args) > 9 {
+			endY = int(args[9].Int())
+		}
+
+		chunkHeight := endY - startY
+
 		p := perlin.New(seed)
-		size := height * width * 4
+		size := chunkHeight * width * 4
 		imageData := make([]uint8, size)
 
-		for y := 0; y < height; y++ {
+		for absoluteY := startY; absoluteY < endY; absoluteY++ {
+			relativeY := absoluteY -  startY
 			for x := 0; x < width; x++ {
 				noiseX := float64(x) / float64(scale)
-				noiseY := float64(y) / float64(scale)
-				index := (y*width + x) * 4
+				noiseY := float64(absoluteY) / float64(scale)
+				index := (relativeY*width + x) * 4
 				noise := p.FractalNoise(noiseX, noiseY, octaves, persistence)
 				r, g, b := paintPixel(noise, amplitude, seaLevel)
 				imageData[index] = r

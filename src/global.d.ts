@@ -14,6 +14,8 @@ type Generate = (
     seaLevel?: number,
     width?: number,
     height?: number,
+    startY?: number,
+    endY?: number,
 ) => Uint8Array;
 
 interface Window {
