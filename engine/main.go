@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	WorldWidth  = 1024
-	WorldHeight = 1024
+	DefaultWorldWidth  = 4096
+	DefaultWorldHeight = 4096
 	DefaultScale       = 200
 	DefaultOctaves     = 6
 	DefaultPersistence = 0.5
@@ -84,15 +84,25 @@ func main() {
 			}
 		}
 
+		width := DefaultWorldWidth
+		if len(args) > 6 {
+			width = int(args[6].Int())
+		}
+
+		height := DefaultWorldHeight
+		if len(args) > 7 {
+			height = int(args[7].Int())
+		}
+
 		p := perlin.New(seed)
-		size := WorldHeight * WorldWidth * 4
+		size := height * width * 4
 		imageData := make([]uint8, size)
 
-		for y := 0; y < WorldHeight; y++ {
-			for x := 0; x < WorldWidth; x++ {
+		for y := 0; y < height; y++ {
+			for x := 0; x < width; x++ {
 				noiseX := float64(x) / float64(scale)
 				noiseY := float64(y) / float64(scale)
-				index := (y*WorldWidth + x) * 4
+				index := (y*width + x) * 4
 				noise := p.FractalNoise(noiseX, noiseY, octaves, persistence)
 				r, g, b := paintPixel(noise, amplitude, seaLevel)
 				imageData[index] = r
