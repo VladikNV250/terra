@@ -3,8 +3,8 @@ import type { TerrainConfig } from "../types/terrain";
 
 const terrainConfigDefault: TerrainConfig = {
     seed: new Date().getTime(),
-    width: 1024,
-    height: 1024,
+    width: 4096,
+    height: 4096,
     scale: 200,
     octave: 6,
     persistence: 0.5,

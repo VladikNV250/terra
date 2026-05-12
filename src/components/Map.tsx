@@ -1,5 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { TerrainConfig } from "../types/terrain";
+import {
+    WorkerMessageType,
+    type ConfigWorkerMessage,
+    type PixelsWorkerMessage,
+    type ReadyWorkerMessage,
+} from "../types/worker";
 
 interface Props {
     terrainConfig: TerrainConfig;
@@ -7,38 +13,59 @@ interface Props {
 
 export const Map = ({ terrainConfig }: Props) => {
     const canvasRef = useRef<null | HTMLCanvasElement>(null);
+    const mapWorkerRef = useRef<Worker | null>(null);
+
+    const [isReady, setIsReady] = useState(false);
 
     useEffect(() => {
-        const go = new Go();
+        mapWorkerRef.current = new Worker(
+            new URL("../worker/worker.ts", import.meta.url),
+            {
+                type: "classic",
+            },
+        );
 
-        WebAssembly.instantiateStreaming(
-            fetch("main.wasm"),
-            go.importObject,
-        ).then((result) => {
-            go.run(result.instance);
+        mapWorkerRef.current.onmessage = (
+            e: MessageEvent<PixelsWorkerMessage | ReadyWorkerMessage>,
+        ) => {
+            const { type, payload } = e.data;
 
-            const pixels = window.generate(
-                terrainConfig.seed,
-                terrainConfig.scale,
-                terrainConfig.octave,
-                terrainConfig.persistence,
-                terrainConfig.amplitude,
-                terrainConfig.seaLevel
-            );
+            switch (type) {
+                case WorkerMessageType.READY: {
+                    setIsReady(true);
+                    return;
+                }
+                case WorkerMessageType.PIXELS: {
+                    const clampedImageData = new Uint8ClampedArray(payload);
+                    const imageData = new ImageData(
+                        clampedImageData,
+                        terrainConfig.width,
+                        terrainConfig.height,
+                    );
 
-            const clampedImageData = new Uint8ClampedArray(pixels);
-            const imageData = new ImageData(
-                clampedImageData,
-                terrainConfig.width,
-                terrainConfig.height,
-            );
-
-            if (canvasRef.current) {
-                const ctx = canvasRef.current.getContext("2d");
-                ctx?.putImageData(imageData, 0, 0);
+                    if (canvasRef.current) {
+                        const ctx = canvasRef.current.getContext("2d");
+                        ctx?.putImageData(imageData, 0, 0);
+                    }
+                    return;
+                }
             }
-        });
-    }, [terrainConfig]);
+        };
+
+        return () => {
+            mapWorkerRef.current?.terminate();
+            mapWorkerRef.current = null;
+        };
+    }, [terrainConfig.width, terrainConfig.height]);
+
+    useEffect(() => {
+        if (!mapWorkerRef.current || !isReady) return;
+
+        mapWorkerRef.current.postMessage({
+            type: WorkerMessageType.CONFIG,
+            payload: terrainConfig,
+        } as ConfigWorkerMessage);
+    }, [terrainConfig, isReady]);
 
     return (
         <canvas

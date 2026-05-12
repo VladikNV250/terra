@@ -1,15 +1,25 @@
+/// <reference lib="webworker" />
+
 declare class Go {
     importObject: WebAssembly.Imports;
     run(instance: WebAssembly.Instance): Promise<void>;
 }
 
+type Generate = (
+    seed?: number,
+    scale?: number,
+    octave?: number,
+    persistence?: number,
+    amplitude?: number,
+    seaLevel?: number,
+    width?: number,
+    height?: number,
+) => Uint8Array;
+
 interface Window {
-    generate: (
-        seed?: number,
-        scale?: number,
-        octave?: number,
-        persistence?: number,
-        amplitude?: number,
-        seaLevel?: number,
-    ) => Uint8Array;
+    generate: Generate;
 }
+
+declare const self: DedicatedWorkerGlobalScope & {
+    generate: Generate;
+};
