@@ -8,7 +8,7 @@ const terrainConfigDefault: TerrainConfig = {
     scale: 200,
     octave: 6,
     persistence: 0.5,
-    amplitude: 3.5,
+    contrast: 1.0,
     seaLevel: 110,
 };
 
@@ -30,9 +30,9 @@ export const useMapControl = () => {
             persistence:
                 Number(formData.get("persistence")) ||
                 terrainConfigDefault.persistence,
-            amplitude:
-                Number(formData.get("amplitude")) ||
-                terrainConfigDefault.amplitude,
+            contrast:
+                Number(formData.get("contrast")) ||
+                terrainConfigDefault.contrast,
             seaLevel:
                 Number(formData.get("seaLevel")) ||
                 terrainConfigDefault.seaLevel,

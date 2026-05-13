@@ -62,8 +62,8 @@ func (p *Perlin) FractalNoise(x, y float64, octaves int, persistence float64) fl
         maxValue += amplitude
         
         amplitude *= persistence 
-        frequency *= 2.0         
-    }
+        frequency *= 2.0
+	}
 
     return total / maxValue
 }

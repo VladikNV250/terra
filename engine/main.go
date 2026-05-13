@@ -12,7 +12,20 @@ const (
 	DefaultScale       = 200
 	DefaultOctaves     = 6
 	DefaultPersistence = 0.5
+	DefaultContrast    = 1.0
 )
+
+func applyContrast(val float64, contrast float64) float64 {
+	val = (val-0.5)*contrast + 0.5
+	if val < 0.0 {
+		return 0.0
+	}
+	if val > 1.0 {
+		return 1.0
+	}
+
+	return val
+}
 
 func main() {
 	js.Global().Set("generate", js.FuncOf(func(this js.Value, args []js.Value) any {
@@ -39,6 +52,11 @@ func main() {
 		persistence := DefaultPersistence
 		if v := config.Get("persistence"); !v.IsUndefined() {
 			persistence = v.Float()
+		}
+
+		contrast := DefaultContrast
+		if v := config.Get("contrast"); !v.IsUndefined() {
+			contrast = v.Float()
 		}
 
 		width := DefaultWorldWidth
@@ -72,17 +90,12 @@ func main() {
 			for x := 0; x < width; x++ {
 				noiseX := float64(x) / float64(scale)
 				noiseY := float64(absoluteY) / float64(scale)
-				rawNoise := p.FractalNoise(noiseX, noiseY, octaves, persistence)
-				normalizedNoise := (rawNoise + 1.0) / 2.0
+				noise := p.FractalNoise(noiseX, noiseY, octaves, persistence)
+				noise = (noise + 1.0) / 2.0
 
-				if normalizedNoise < 0.0 {
-					normalizedNoise = 0.0
-				}
-				if normalizedNoise > 1.0 {
-					normalizedNoise = 1.0
-				}
+				noise = applyContrast(noise, contrast)
 
-				heightValue := uint8(normalizedNoise * 255)
+				heightValue := uint8(noise * 255)
 
 				heightmap[relativeY*width+x] = heightValue
 			}

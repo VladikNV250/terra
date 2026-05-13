@@ -10,6 +10,7 @@ interface TerrainConfigGo {
     scale: number;
     octave: number;
     persistence: number;
+    contrast: number;
     seaLevel: number;
     startY: number;
     endY: number;

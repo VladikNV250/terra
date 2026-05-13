@@ -39,6 +39,11 @@ export const MapControl = ({ terrainConfig, updateConfig }: Props) => {
                     defaultValue={terrainConfig.seaLevel}
                 />
                 <ControlField
+                    label="Contrast"
+                    name="contrast"
+                    defaultValue={terrainConfig.contrast}
+                />
+                <ControlField
                     label="Width"
                     name="width"
                     defaultValue={terrainConfig.width}
