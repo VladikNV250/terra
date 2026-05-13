@@ -3,21 +3,24 @@ declare class Go {
     run(instance: WebAssembly.Instance): Promise<void>;
 }
 
-type Generate = (
-    seed?: number,
-    scale?: number,
-    octave?: number,
-    persistence?: number,
-    width?: number,
-    height?: number,
-    startY?: number,
-    endY?: number,
-) => Uint8Array;
+interface TerrainConfigGo {
+    seed: number;
+    width: number;
+    height: number;
+    scale: number;
+    octave: number;
+    persistence: number;
+    seaLevel: number;
+    startY: number;
+    endY: number;
+}
+
+type Generate = (config: TerrainConfigGo) => Uint8Array;
 
 interface Window {
     generate: Generate;
 }
 
-// declare const self: DedicatedWorkerGlobalScope & {
-//     generate: Generate;
-// };
+declare const self: DedicatedWorkerGlobalScope & {
+    generate: Generate;
+};

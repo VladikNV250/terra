@@ -16,44 +16,49 @@ const (
 
 func main() {
 	js.Global().Set("generate", js.FuncOf(func(this js.Value, args []js.Value) any {
+		if len(args) == 0 {
+			return nil
+		}
+		config := args[0]
+
 		seed := time.Now().UnixNano()
-		if len(args) > 0 {
-			seed = int64(args[0].Int())
+		if v := config.Get("seed"); !v.IsUndefined() {
+			seed = int64(v.Int())
 		}
 
 		scale := DefaultScale
-		if len(args) > 1 {
-			scale = int(args[1].Int())
+		if v := config.Get("scale"); !v.IsUndefined() {
+			scale = v.Int()
 		}
 
 		octaves := DefaultOctaves
-		if len(args) > 2 {
-			octaves = int(args[2].Int())
+		if v := config.Get("octave"); !v.IsUndefined() {
+			octaves = v.Int()
 		}
 
 		persistence := DefaultPersistence
-		if len(args) > 3 {
-			persistence = float64(args[3].Float())
+		if v := config.Get("persistence"); !v.IsUndefined() {
+			persistence = v.Float()
 		}
 
 		width := DefaultWorldWidth
-		if len(args) > 4 {
-			width = int(args[4].Int())
+		if v := config.Get("width"); !v.IsUndefined() {
+			width = v.Int()
 		}
 
 		height := DefaultWorldHeight
-		if len(args) > 5 {
-			height = int(args[5].Int())
+		if v := config.Get("height"); !v.IsUndefined() {
+			height = v.Int()
 		}
 
 		startY := 0
-		if len(args) > 6 {
-			startY = int(args[6].Int())
+		if v := config.Get("startY"); !v.IsUndefined() {
+			startY = v.Int()
 		}
 
 		endY := height
-		if len(args) > 7 {
-			endY = int(args[7].Int())
+		if v := config.Get("endY"); !v.IsUndefined() {
+			endY = v.Int()
 		}
 
 		chunkHeight := endY - startY

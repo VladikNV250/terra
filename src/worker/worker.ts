@@ -13,16 +13,7 @@ WebAssembly.instantiateStreaming(fetch("/main.wasm"), go.importObject).then(
     (result) => {
         go.run(result.instance);
         self.onmessage = (e: MessageEvent<ConfigWorkerMessage>) => {
-            const heightmap = self.generate(
-                e.data.payload.seed,
-                e.data.payload.scale,
-                e.data.payload.octave,
-                e.data.payload.persistence,
-                e.data.payload.width,
-                e.data.payload.height,
-                e.data.payload.startY,
-                e.data.payload.endY,
-            );
+            const heightmap = self.generate(e.data.payload);
 
             const pixels = convertHeightsToRGBA(
                 heightmap,
