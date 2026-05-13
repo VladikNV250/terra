@@ -1,0 +1,1 @@
+export { convertHeightsToRGBA } from './convertHeightsToRGBA'

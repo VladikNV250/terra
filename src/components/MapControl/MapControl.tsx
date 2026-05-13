@@ -34,12 +34,6 @@ export const MapControl = ({ terrainConfig, updateConfig }: Props) => {
                     step={0.1}
                 />
                 <ControlField
-                    label="Amplitude"
-                    name="amplitude"
-                    defaultValue={terrainConfig.amplitude}
-                    step={0.1}
-                />
-                <ControlField
                     label="Sea Level"
                     name="seaLevel"
                     defaultValue={terrainConfig.seaLevel}

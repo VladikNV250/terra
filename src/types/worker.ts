@@ -17,7 +17,7 @@ export interface WorkerMessage<T extends WorkerMessageType, D = unknown> {
 export type ReadyWorkerMessage = WorkerMessage<typeof WorkerMessageType.READY>;
 export type PixelsWorkerMessage = WorkerMessage<
     typeof WorkerMessageType.PIXELS,
-    { pixels: Uint8Array, startY: number, endY: number }
+    { pixels: Uint8ClampedArray, startY: number, endY: number }
 >;
 export type ConfigWorkerMessage = WorkerMessage<
     typeof WorkerMessageType.CONFIG,

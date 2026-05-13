@@ -5,6 +5,5 @@ export interface TerrainConfig {
     scale: number;
     octave: number;
     persistence: number;
-    amplitude: number;
     seaLevel: number;
 }

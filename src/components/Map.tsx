@@ -24,7 +24,7 @@ export const Map = ({ terrainConfig }: Props) => {
         for (let i = 0; i < numOfWorkers; i++) {
             workers.push(
                 new Worker(new URL("../worker/worker.ts", import.meta.url), {
-                    type: "classic",
+                    type: "module",
                 }),
             );
         }
@@ -44,11 +44,8 @@ export const Map = ({ terrainConfig }: Props) => {
                         }
                         case WorkerMessageType.PIXELS: {
                             const chunkHeight = payload.endY - payload.startY;
-                            const clampedImageData = new Uint8ClampedArray(
-                                payload.pixels,
-                            );
                             const imageData = new ImageData(
-                                clampedImageData,
+                                new Uint8ClampedArray(payload.pixels),
                                 terrainConfig.width,
                                 chunkHeight,
                             );
