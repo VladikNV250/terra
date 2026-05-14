@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
 import type { TerrainConfig } from "../types/terrain";
 import {
     WorkerMessageType,
@@ -17,6 +17,41 @@ export const Map = ({ terrainConfig }: Props) => {
     const mapWorkersRef = useRef<Worker[]>([]);
 
     const [readyWorkersCount, setReadyWorkersCount] = useState(0);
+
+    const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 });
+    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+    const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+    const handlePointerDown = (e: PointerEvent<HTMLCanvasElement>) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        setDragStart({ x: e.clientX, y: e.clientY });
+    };
+
+    const handlePointerMove = (e: PointerEvent<HTMLCanvasElement>) => {
+        if (e.buttons !== 1) {
+            handlePointerUp(e);
+            return;
+        }
+
+        const distanceX = e.clientX - dragStart.x;
+        const distanceY = e.clientY - dragStart.y;
+
+        setDragOffset({ x: distanceX, y: distanceY });
+    };
+
+    const handlePointerUp = (e: PointerEvent<HTMLCanvasElement>) => {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+        if (dragOffset.x === 0 && dragOffset.y === 0) {
+            return;
+        }
+
+        setCameraOffset((prev) => ({
+            x: prev.x - dragOffset.x,
+            y: prev.y - dragOffset.y,
+        }));
+
+        setDragOffset({ x: 0, y: 0 });
+    };
 
     useEffect(() => {
         const workers = [];
@@ -63,7 +98,7 @@ export const Map = ({ terrainConfig }: Props) => {
         return () => {
             mapWorkersRef.current.forEach((worker) => worker.terminate());
             mapWorkersRef.current = [];
-            setReadyWorkersCount(0)
+            setReadyWorkersCount(0);
         };
     }, [terrainConfig.width, terrainConfig.height]);
 
@@ -81,18 +116,37 @@ export const Map = ({ terrainConfig }: Props) => {
 
             worker.postMessage({
                 type: WorkerMessageType.CONFIG,
-                payload: { ...terrainConfig, startY, endY },
+                payload: {
+                    ...terrainConfig,
+                    offsetX: cameraOffset.x,
+                    offsetY: cameraOffset.y,
+                    startY,
+                    endY,
+                },
             } as ConfigWorkerMessage);
         });
-    }, [terrainConfig, readyWorkersCount]);
+    }, [terrainConfig, cameraOffset, readyWorkersCount]);
 
     return (
-        <Flex justify="center" align="center" height="100%" overflow="hidden" className="aspect-square">
+        <Flex
+            justify="center"
+            align="center"
+            height="100%"
+            overflow="hidden"
+            className="aspect-square cursor-grab active:cursor-grabbing"
+        >
             <canvas
-                className="max-w-full max-h-full object-contain "
+                style={{
+                    transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`,
+                }}
+                className="max-w-full max-h-full object-contain"
                 ref={canvasRef}
                 width={terrainConfig.width}
                 height={terrainConfig.height}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerLeave={handlePointerUp}
             />
         </Flex>
     );

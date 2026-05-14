@@ -12,6 +12,8 @@ interface TerrainConfigGo {
     persistence: number;
     contrast: number;
     seaLevel: number;
+    offsetX: number;
+    offsetY: number;
     startY: number;
     endY: number;
 }

@@ -21,5 +21,5 @@ export type PixelsWorkerMessage = WorkerMessage<
 >;
 export type ConfigWorkerMessage = WorkerMessage<
     typeof WorkerMessageType.CONFIG,
-    TerrainConfig & { startY: number, endY: number }
+    TerrainConfig & { startY: number, endY: number, offsetX: number, offsetY: number }
 >;
