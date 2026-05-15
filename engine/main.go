@@ -41,74 +41,37 @@ type TerrainConfig struct {
 	offsetY     int
 }
 
+func getJSValue(obj js.Value, key string, defaultValue any) any {
+	v := obj.Get(key)
+	if v.IsUndefined() {
+		return defaultValue
+	}
+
+	switch defaultValue.(type) {
+	case int:
+		return v.Int()
+	case float64:
+		return v.Float()
+	case int64:
+		return int64(v.Int())
+	default:
+		return defaultValue
+	}
+}
+
 func getParameters(config js.Value) TerrainConfig {
-	seed := time.Now().UnixNano()
-	if v := config.Get("seed"); !v.IsUndefined() {
-		seed = int64(v.Int())
-	}
-
-	scale := DefaultScale
-	if v := config.Get("scale"); !v.IsUndefined() {
-		scale = v.Int()
-	}
-
-	octaves := DefaultOctaves
-	if v := config.Get("octave"); !v.IsUndefined() {
-		octaves = v.Int()
-	}
-
-	persistence := DefaultPersistence
-	if v := config.Get("persistence"); !v.IsUndefined() {
-		persistence = v.Float()
-	}
-
-	contrast := DefaultContrast
-	if v := config.Get("contrast"); !v.IsUndefined() {
-		contrast = v.Float()
-	}
-
-	width := DefaultWorldWidth
-	if v := config.Get("width"); !v.IsUndefined() {
-		width = v.Int()
-	}
-
-	height := DefaultWorldHeight
-	if v := config.Get("height"); !v.IsUndefined() {
-		height = v.Int()
-	}
-
-	startY := 0
-	if v := config.Get("startY"); !v.IsUndefined() {
-		startY = v.Int()
-	}
-
-	endY := height
-	if v := config.Get("endY"); !v.IsUndefined() {
-		endY = v.Int()
-	}
-
-	offsetX := 0
-	if v := config.Get("offsetX"); !v.IsUndefined() {
-		offsetX = v.Int()
-	}
-
-	offsetY := 0
-	if v := config.Get("offsetY"); !v.IsUndefined() {
-		offsetY = v.Int()
-	}
-
 	return TerrainConfig{
-		seed:        seed,
-		scale:       scale,
-		octaves:     octaves,
-		persistence: persistence,
-		contrast:    contrast,
-		width:       width,
-		height:      height,
-		startY:      startY,
-		endY:        endY,
-		offsetX:     offsetX,
-		offsetY:     offsetY,
+		seed:        getJSValue(config, "seed", time.Now().UnixNano()).(int64),
+		scale:       getJSValue(config, "scale", DefaultScale).(int),
+		octaves:     getJSValue(config, "octave", DefaultOctaves).(int),
+		persistence: getJSValue(config, "persistence", DefaultPersistence).(float64),
+		contrast:    getJSValue(config, "contrast", DefaultContrast).(float64),
+		width:       getJSValue(config, "width", DefaultWorldWidth).(int),
+		height:      getJSValue(config, "height", DefaultWorldHeight).(int),
+		startY:      getJSValue(config, "startY", 0).(int),
+		endY:        getJSValue(config, "endY", DefaultWorldHeight).(int),
+		offsetX:     getJSValue(config, "offsetX", 0).(int),
+		offsetY:     getJSValue(config, "offsetY", 0).(int),
 	}
 }
 

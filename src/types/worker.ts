@@ -4,6 +4,7 @@ export const WorkerMessageType = {
     READY: "READY",
     PIXELS: "PIXELS",
     CONFIG: "CONFIG",
+    INIT: "INIT",
 } as const;
 
 export type WorkerMessageType =
@@ -22,4 +23,8 @@ export type PixelsWorkerMessage = WorkerMessage<
 export type ConfigWorkerMessage = WorkerMessage<
     typeof WorkerMessageType.CONFIG,
     TerrainConfig & { startY: number, endY: number, offsetX: number, offsetY: number }
+>;
+export type InitWorkerMessage = WorkerMessage<
+    typeof WorkerMessageType.INIT,
+    { module: WebAssembly.Module }
 >;
