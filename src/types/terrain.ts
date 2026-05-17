@@ -8,3 +8,11 @@ export interface TerrainConfig {
     contrast: number;
     seaLevel: number;
 }
+
+export interface ChunkMetadata {
+    id: number;
+    startY: number;
+    endY: number;
+    offsetX: number;
+    offsetY: number;
+}

@@ -1,4 +1,4 @@
-import type { TerrainConfig } from "./terrain";
+import type { ChunkMetadata, TerrainConfig } from "./terrain";
 
 export const WorkerMessageType = {
     READY: "READY",
@@ -10,27 +10,41 @@ export const WorkerMessageType = {
 export type WorkerMessageType =
     (typeof WorkerMessageType)[keyof typeof WorkerMessageType];
 
-export interface WorkerMessage<T extends WorkerMessageType, D = unknown> {
-    type: T;
-    payload: D;
-}
+export type WorkerMessage<
+    T extends WorkerMessageType,
+    D = void,
+> = D extends void
+    ? {
+          type: T;
+      }
+    : {
+          type: T;
+          payload: D;
+      };
 
 export type ReadyWorkerMessage = WorkerMessage<typeof WorkerMessageType.READY>;
+
+export type PixelsPayload = Pick<ChunkMetadata, "id" | "startY" | "endY"> & {
+    pixels: Uint8ClampedArray;
+};
+
 export type PixelsWorkerMessage = WorkerMessage<
     typeof WorkerMessageType.PIXELS,
-    { pixels: Uint8ClampedArray; startY: number; endY: number; id: number }
+    PixelsPayload
 >;
+
 export type ConfigWorkerMessage = WorkerMessage<
     typeof WorkerMessageType.CONFIG,
-    TerrainConfig & {
-        startY: number;
-        endY: number;
-        offsetX: number;
-        offsetY: number;
-        id: number;
+    {
+        config: TerrainConfig;
+        metadata: ChunkMetadata;
     }
 >;
+
 export type InitWorkerMessage = WorkerMessage<
     typeof WorkerMessageType.INIT,
     { module: WebAssembly.Module }
 >;
+
+export type WorkerInputMessage = InitWorkerMessage | ConfigWorkerMessage;
+export type WorkerOutputMessage = ReadyWorkerMessage | PixelsWorkerMessage;

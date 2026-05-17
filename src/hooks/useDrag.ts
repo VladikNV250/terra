@@ -1,18 +1,16 @@
 import { useState, useRef, type PointerEvent, useCallback } from "react";
+import type { Vector2D } from "../types/math";
 
-interface Vector2 {
-    x: number;
-    y: number;
-}
+
 
 interface UseDragOptions {
-    onDragEnd?: (offset: Vector2) => void;
+    onDragEnd?: (offset: Vector2D) => void;
 }
 
 export const useDrag = (options?: UseDragOptions) => {
     const isDraggingRef = useRef(false);
-    const dragStartRef = useRef<Vector2>({ x: 0, y: 0 });
-    const [dragOffset, setDragOffset] = useState<Vector2>({ x: 0, y: 0 });
+    const dragStartRef = useRef<Vector2D>({ x: 0, y: 0 });
+    const [dragOffset, setDragOffset] = useState<Vector2D>({ x: 0, y: 0 });
 
     const handlePointerDown = (e: PointerEvent<HTMLElement>) => {
         e.currentTarget.setPointerCapture(e.pointerId);

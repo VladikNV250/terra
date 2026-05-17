@@ -1,51 +1,64 @@
 import { convertHeightsToRGBA } from "../lib";
 import {
     WorkerMessageType,
-    type ConfigWorkerMessage,
-    type PixelsWorkerMessage,
-    type ReadyWorkerMessage,
-    type InitWorkerMessage,
+    type WorkerInputMessage,
+    type WorkerOutputMessage,
 } from "../types/worker.js";
 
 import "./wasm_exec.js";
 
+export interface TerrainWorker extends Omit<
+    Worker,
+    "postMessage" | "onmessage"
+> {
+    postMessage(message: WorkerInputMessage, transfer?: Transferable[]);
+    onmessage:
+        | ((this: Worker, e: MessageEvent<WorkerOutputMessage>) => void)
+        | null;
+}
+
+const sendMessage = (
+    message: WorkerOutputMessage,
+    transfer?: Transferable[],
+) => {
+    self.postMessage(message, transfer);
+};
+
 const go = new Go();
 
-self.onmessage = async (e: MessageEvent<InitWorkerMessage | ConfigWorkerMessage>) => {
-    const { type, payload } = e.data;
+self.onmessage = async (
+    e: MessageEvent<WorkerInputMessage>,
+) => {
+    const message = e.data;
 
-    if (type === WorkerMessageType.INIT) {
-        const { module } = payload as InitWorkerMessage["payload"];
-        const instance = await WebAssembly.instantiate(module, go.importObject);
-        go.run(instance);
-        self.postMessage({ type: WorkerMessageType.READY } as ReadyWorkerMessage);
-        return;
-    }
-
-    if (type === WorkerMessageType.CONFIG) {
-        const config = payload as ConfigWorkerMessage["payload"];
-        
-        // Ensure WASM is ready (though we send READY message, let's be safe)
-        if (typeof self.generate !== 'function') {
-            console.error('WASM generate function not ready');
+    switch (message.type) {
+        case WorkerMessageType.INIT: {
+            const { module } = message.payload;
+            const instance = await WebAssembly.instantiate(
+                module,
+                go.importObject,
+            );
+            go.run(instance);
+            sendMessage({ type: WorkerMessageType.READY });
             return;
         }
-
-        const heightmap = self.generate(config);
-
-        const pixels = convertHeightsToRGBA(
-            heightmap,
-            config.seaLevel,
-        );
-
-        self.postMessage({
-            type: WorkerMessageType.PIXELS,
-            payload: {
-                pixels: pixels,
-                startY: config.startY,
-                endY: config.endY,
-                id: config.id,
-            },
-        } as PixelsWorkerMessage, [pixels.buffer]);
+        case WorkerMessageType.CONFIG: {
+            const { config, metadata } = message.payload;
+            const heightmap = self.generate({ ...config, ...metadata });
+            const pixels = convertHeightsToRGBA(heightmap, config.seaLevel);
+            sendMessage(
+                {
+                    type: WorkerMessageType.PIXELS,
+                    payload: {
+                        pixels: pixels,
+                        startY: metadata.startY,
+                        endY: metadata.endY,
+                        id: metadata.id,
+                    },
+                },
+                [pixels.buffer],
+            );
+            return;
+        }
     }
 };
