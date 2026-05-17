@@ -11,17 +11,19 @@ interface Props {
 export const Map = ({ terrainConfig }: Props) => {
     const canvasRef = useRef<null | HTMLCanvasElement>(null);
     const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 });
+    const [requestId, setRequestId] = useState(0);
 
-    const { dragOffset, handlers } = useDrag({
+    const { dragOffset, resetDrag, handlers } = useDrag({
         onDragEnd: (offset) => {
             setCameraOffset((prev) => ({
                 x: prev.x - offset.x,
                 y: prev.y - offset.y,
             }));
+            setRequestId((prev) => prev + 1);
         },
     });
 
-    useMapWorkers(terrainConfig, cameraOffset, canvasRef);
+    useMapWorkers(terrainConfig, cameraOffset, canvasRef, requestId, resetDrag);
 
     return (
         <Flex

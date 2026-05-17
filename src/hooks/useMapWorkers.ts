@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import type { TerrainConfig } from "../types/terrain";
 import {
     WorkerMessageType,
@@ -11,11 +11,24 @@ import {
 export const useMapWorkers = (
     terrainConfig: TerrainConfig,
     cameraOffset: { x: number; y: number },
-    canvasRef: React.RefObject<HTMLCanvasElement | null>
+    canvasRef: RefObject<HTMLCanvasElement | null>,
+    requestId: number,
+    onDragComplete?: () => void,
 ) => {
     const mapWorkersRef = useRef<Worker[]>([]);
     const [isInitialized, setIsInitialized] = useState(false);
     const readyCountRef = useRef(0);
+    const bufferCanvasRef = useRef<HTMLCanvasElement | null>(null)
+    const chunksReadyRef = useRef(0)
+
+    useEffect(() => {
+        if (!bufferCanvasRef.current) {
+            bufferCanvasRef.current = document.createElement("canvas");
+        }
+
+        bufferCanvasRef.current.width = terrainConfig.width;
+        bufferCanvasRef.current.height = terrainConfig.height;
+    }, [terrainConfig.width, terrainConfig.height])
 
     useEffect(() => {
         const initializeWorkers = async () => {
@@ -29,10 +42,10 @@ export const useMapWorkers = (
                 for (let i = 0; i < numOfWorkers; i++) {
                     const worker = new Worker(
                         new URL("../worker/worker.ts", import.meta.url),
-                        { type: "module" }
+                        { type: "module" },
                     );
 
-                    worker.onmessage = (e) => {
+                    worker.onmessage = (e: MessageEvent<ReadyWorkerMessage>) => {
                         if (e.data.type === WorkerMessageType.READY) {
                             readyCountRef.current++;
                             if (readyCountRef.current === numOfWorkers) {
@@ -69,26 +82,33 @@ export const useMapWorkers = (
 
         mapWorkersRef.current.forEach((worker) => {
             worker.onmessage = (
-                e: MessageEvent<PixelsWorkerMessage | ReadyWorkerMessage>
+                e: MessageEvent<PixelsWorkerMessage>,
             ) => {
                 const { type, payload } = e.data;
-
+                
                 if (type === WorkerMessageType.PIXELS) {
+                    if (payload.id !== requestId) return;
+                    
                     const chunkHeight = payload.endY - payload.startY;
                     const imageData = new ImageData(
                         new Uint8ClampedArray(payload.pixels),
                         terrainConfig.width,
-                        chunkHeight
+                        chunkHeight,
                     );
 
-                    if (canvasRef.current) {
+                    bufferCanvasRef.current.getContext("2d")?.putImageData(imageData, 0, payload.startY);
+                    chunksReadyRef.current++;
+
+                    if (canvasRef.current && chunksReadyRef.current === mapWorkersRef.current.length) {
                         const ctx = canvasRef.current.getContext("2d");
-                        ctx?.putImageData(imageData, 0, payload.startY);
+                        ctx?.drawImage(bufferCanvasRef.current, 0, 0);
+                        chunksReadyRef.current = 0;
+                        onDragComplete?.()
                     }
                 }
             };
         });
-    }, [isInitialized, terrainConfig.width, canvasRef]);
+    }, [isInitialized, terrainConfig.width, canvasRef, requestId, onDragComplete]);
 
     useEffect(() => {
         if (!isInitialized) return;
@@ -97,6 +117,7 @@ export const useMapWorkers = (
         const totalHeight = terrainConfig.height;
         const chunkHeight = Math.floor(totalHeight / numOfWorkers);
 
+        chunksReadyRef.current = 0
         mapWorkersRef.current.forEach((worker, i) => {
             const startY = chunkHeight * i;
             const endY =
@@ -110,8 +131,9 @@ export const useMapWorkers = (
                     offsetY: cameraOffset.y,
                     startY,
                     endY,
+                    id: requestId,
                 },
             } as ConfigWorkerMessage);
         });
-    }, [isInitialized, terrainConfig, cameraOffset]);
+    }, [isInitialized, terrainConfig, cameraOffset, requestId]);
 };

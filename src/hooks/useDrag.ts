@@ -1,4 +1,4 @@
-import { useState, useRef, type PointerEvent } from "react";
+import { useState, useRef, type PointerEvent, useCallback } from "react";
 
 interface Vector2 {
     x: number;
@@ -47,14 +47,17 @@ export const useDrag = (options?: UseDragOptions) => {
                 y: e.clientY - dragStartRef.current.y,
             });
         }
-
-        setDragOffset({ x: 0, y: 0 });
     };
 
     const handlePointerLeave = handlePointerUp;
 
+    const resetDrag = useCallback(() => {
+        setDragOffset({ x: 0, y: 0 })
+    }, [])
+
     return {
         dragOffset,
+        resetDrag,
         handlers: {
             onPointerDown: handlePointerDown,
             onPointerMove: handlePointerMove,

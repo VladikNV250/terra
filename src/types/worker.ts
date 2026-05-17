@@ -18,11 +18,17 @@ export interface WorkerMessage<T extends WorkerMessageType, D = unknown> {
 export type ReadyWorkerMessage = WorkerMessage<typeof WorkerMessageType.READY>;
 export type PixelsWorkerMessage = WorkerMessage<
     typeof WorkerMessageType.PIXELS,
-    { pixels: Uint8ClampedArray, startY: number, endY: number }
+    { pixels: Uint8ClampedArray; startY: number; endY: number; id: number }
 >;
 export type ConfigWorkerMessage = WorkerMessage<
     typeof WorkerMessageType.CONFIG,
-    TerrainConfig & { startY: number, endY: number, offsetX: number, offsetY: number }
+    TerrainConfig & {
+        startY: number;
+        endY: number;
+        offsetX: number;
+        offsetY: number;
+        id: number;
+    }
 >;
 export type InitWorkerMessage = WorkerMessage<
     typeof WorkerMessageType.INIT,

@@ -44,6 +44,7 @@ self.onmessage = async (e: MessageEvent<InitWorkerMessage | ConfigWorkerMessage>
                 pixels: pixels,
                 startY: config.startY,
                 endY: config.endY,
+                id: config.id,
             },
         } as PixelsWorkerMessage, [pixels.buffer]);
     }
