@@ -14,8 +14,8 @@ export interface TerrainConfig {
 
 export interface ChunkMetadata {
     id: number;
-    startY: number;
-    endY: number;
+    x: number;
+    y: number;
     offsetX: number;
     offsetY: number;
 }

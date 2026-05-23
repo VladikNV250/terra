@@ -1,3 +1,4 @@
+import { CHUNK_SIZE } from "../config/terrain";
 import type { Vector2D } from "../types/math";
 import type { TerrainConfig } from "../types/terrain";
 import { WorkerMessageType, type WorkerOutputMessage } from "../types/worker";
@@ -9,17 +10,24 @@ interface GenerateOptions {
     canvas: HTMLCanvasElement | null;
 }
 
+interface ChunkRequest {
+    x: number;
+    y: number;
+}
+
 export class TerrainEngine {
     private readonly NUM_OF_WORKERS = navigator.hardwareConcurrency || 4;
 
     private readyWorkers = 0;
     private workers: TerrainWorker[] = [];
+    private idleWorkers: TerrainWorker[] = [];
     private bufferCanvas: HTMLCanvasElement = document.createElement("canvas");
-    private chunksReady = 0;
     private requestId = 0;
+    private chunksQueue: ChunkRequest[] = [];
 
     private targetCanvas: HTMLCanvasElement | null = null;
-    private targetWidth: number = 0;
+    private currentConfig: TerrainConfig | null = null;
+    private currentCameraOffset: Vector2D | null = null;
     private onEngineReady?: () => void;
     private resolveRender?: () => void;
 
@@ -39,7 +47,7 @@ export class TerrainEngine {
                     { type: "module" },
                 ) as TerrainWorker;
 
-                worker.onmessage = this.handleWorkerMessage;
+                worker.onmessage = (e) => this.handleWorkerMessage(worker, e);
 
                 worker.postMessage({
                     type: WorkerMessageType.INIT,
@@ -47,6 +55,7 @@ export class TerrainEngine {
                 });
 
                 this.workers.push(worker);
+                this.idleWorkers.push(worker);
             }
         } catch (error) {
             console.error("Failed to initialize workers:", error);
@@ -64,40 +73,32 @@ export class TerrainEngine {
         const { cameraOffset, canvas, config } = options;
         this.requestId++;
         this.resizeBuffer(config.width, config.height);
-
+        
+        this.chunksQueue = []
         this.targetCanvas = canvas;
-        this.targetWidth = config.width;
+        this.currentConfig = config;
+        this.currentCameraOffset = cameraOffset;
 
-        const totalHeight = config.height;
-        const chunkHeight = Math.floor(totalHeight / this.NUM_OF_WORKERS);
+        for (let y = 0; y < Math.ceil(config.height / CHUNK_SIZE); y++) {
+            for (let x = 0; x < Math.ceil(config.width / CHUNK_SIZE); x++) {
+                this.chunksQueue.push({
+                    x,
+                    y,
+                });
+            }
+        }
 
-        this.chunksReady = 0;
-        const isLastChunk = (i: number) => i === this.NUM_OF_WORKERS - 1;
-        this.workers.forEach((worker, i) => {
-            const startY = chunkHeight * i;
-            const endY = isLastChunk(i) ? totalHeight : startY + chunkHeight;
-
-            worker.postMessage({
-                type: WorkerMessageType.CONFIG,
-                payload: {
-                    config: config,
-                    metadata: {
-                        id: this.requestId,
-                        offsetX: cameraOffset.x,
-                        offsetY: cameraOffset.y,
-                        startY,
-                        endY,
-                    },
-                },
-            });
-        });
+        this.processQueue();
 
         return new Promise((resolve) => {
             this.resolveRender = resolve;
         });
     }
 
-    private handleWorkerMessage(e: MessageEvent<WorkerOutputMessage>) {
+    private handleWorkerMessage(
+        worker: TerrainWorker,
+        e: MessageEvent<WorkerOutputMessage>,
+    ) {
         const message = e.data;
 
         if (message.type === WorkerMessageType.READY) {
@@ -109,25 +110,33 @@ export class TerrainEngine {
         }
 
         if (message.type === WorkerMessageType.PIXELS) {
-            const { pixels, id, startY, endY } = message.payload;
-            if (id !== this.requestId) return;
+            const { pixels, id, x, y } = message.payload;
+            if (id !== this.requestId) {
+                this.idleWorkers.push(worker);
+                return;
+            }
 
-            const chunkHeight = endY - startY;
             const imageData = new ImageData(
                 new Uint8ClampedArray(pixels),
-                this.targetWidth,
-                chunkHeight,
+                CHUNK_SIZE,
+                CHUNK_SIZE,
             );
 
             this.bufferCanvas
                 .getContext("2d")
-                ?.putImageData(imageData, 0, startY);
-            this.chunksReady++;
+                ?.putImageData(imageData, x * CHUNK_SIZE, y * CHUNK_SIZE);
 
-            if (this.targetCanvas && this.chunksReady === this.NUM_OF_WORKERS) {
-                const ctx = this.targetCanvas.getContext("2d");
-                ctx?.drawImage(this.bufferCanvas, 0, 0);
-                this.chunksReady = 0;
+            this.idleWorkers.push(worker);
+            this.processQueue();
+
+            if (
+                this.chunksQueue.length === 0 &&
+                this.idleWorkers.length === this.NUM_OF_WORKERS
+            ) {
+                if (this.targetCanvas) {
+                    const ctx = this.targetCanvas.getContext("2d");
+                    ctx?.drawImage(this.bufferCanvas, 0, 0);
+                }
                 this.resolveRender?.();
             }
         }
@@ -142,5 +151,28 @@ export class TerrainEngine {
 
         this.bufferCanvas.width = width;
         this.bufferCanvas.height = height;
+    }
+
+    private processQueue() {
+        if (!this.currentConfig || !this.currentCameraOffset) return;
+
+        while (this.chunksQueue.length > 0 && this.idleWorkers.length > 0) {
+            const worker = this.idleWorkers.pop();
+            const chunkRequest = this.chunksQueue.shift();
+
+            worker.postMessage({
+                type: WorkerMessageType.CONFIG,
+                payload: {
+                    config: this.currentConfig,
+                    metadata: {
+                        id: this.requestId,
+                        x: chunkRequest.x,
+                        y: chunkRequest.y,
+                        offsetX: this.currentCameraOffset.x,
+                        offsetY: this.currentCameraOffset.y,
+                    },
+                },
+            });
+        }
     }
 }

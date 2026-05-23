@@ -1,3 +1,4 @@
+import { CHUNK_SIZE } from "../config/terrain.js";
 import { convertTerrainDataToRGBA } from "../lib";
 import {
     WorkerMessageType,
@@ -48,15 +49,28 @@ self.onmessage = async (
         }
         case WorkerMessageType.CONFIG: {
             const { config, metadata } = message.payload;
-            const terrainData = self.generate({ ...config, ...metadata });
+
+            const startX = metadata.x * CHUNK_SIZE;
+            const startY = metadata.y * CHUNK_SIZE;
+            const endX = startX + CHUNK_SIZE;
+            const endY = startY + CHUNK_SIZE;
+
+            const terrainData = self.generate({
+                ...config,
+                ...metadata,
+                startX,
+                startY,
+                endX,
+                endY,
+            });
             const pixels = convertTerrainDataToRGBA(terrainData, config);
             sendMessage(
                 {
                     type: WorkerMessageType.PIXELS,
                     payload: {
                         pixels: pixels,
-                        startY: metadata.startY,
-                        endY: metadata.endY,
+                        x: metadata.x,
+                        y: metadata.y,
                         id: metadata.id,
                     },
                 },
