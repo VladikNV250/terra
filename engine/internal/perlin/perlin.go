@@ -50,11 +50,11 @@ func (p *Perlin) Noise2D(x, y float64) float64 {
 	return lerp3
 }
 
-func (p *Perlin) FractalNoise(x, y float64, octaves int, persistence float64) float64 {
+func (p *Perlin) FractalNoise(x, y float64, octaves int, frequency float64) float64 {
     total := 0.0
-    frequency := 1.0
     amplitude := 1.0
     maxValue := 0.0 
+	persistence := 0.5
 
     for i := 0; i < octaves; i++ {
         total += p.Noise2D(x*frequency, y*frequency) * amplitude

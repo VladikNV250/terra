@@ -30,7 +30,9 @@ export const Map = ({ terrainConfig }: Props) => {
         });
 
         return () => {
-            terrainEngine.current.destroy();
+            if (terrainEngine.current) {
+                terrainEngine.current.destroy();
+            }
         };
     }, []);
 
@@ -39,7 +41,7 @@ export const Map = ({ terrainConfig }: Props) => {
             return;
 
         const draw = async () => {
-            await terrainEngine.current.generate({
+            await terrainEngine.current?.generate({
                 config: terrainConfig,
                 cameraOffset,
                 canvas: canvasRef.current,

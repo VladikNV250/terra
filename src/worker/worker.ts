@@ -1,4 +1,4 @@
-import { convertHeightsToRGBA } from "../lib";
+import { convertTerrainDataToRGBA } from "../lib";
 import {
     WorkerMessageType,
     type WorkerInputMessage,
@@ -11,7 +11,7 @@ export interface TerrainWorker extends Omit<
     Worker,
     "postMessage" | "onmessage"
 > {
-    postMessage(message: WorkerInputMessage, transfer?: Transferable[]);
+    postMessage(message: WorkerInputMessage, transfer?: Transferable[]): void;
     onmessage:
         | ((this: Worker, e: MessageEvent<WorkerOutputMessage>) => void)
         | null;
@@ -21,7 +21,11 @@ const sendMessage = (
     message: WorkerOutputMessage,
     transfer?: Transferable[],
 ) => {
-    self.postMessage(message, transfer);
+    if (transfer) {
+        self.postMessage(message, { transfer });
+    } else {
+        self.postMessage(message);
+    }
 };
 
 const go = new Go();
@@ -44,8 +48,8 @@ self.onmessage = async (
         }
         case WorkerMessageType.CONFIG: {
             const { config, metadata } = message.payload;
-            const heightmap = self.generate({ ...config, ...metadata });
-            const pixels = convertHeightsToRGBA(heightmap, config.seaLevel);
+            const terrainData = self.generate({ ...config, ...metadata });
+            const pixels = convertTerrainDataToRGBA(terrainData, config);
             sendMessage(
                 {
                     type: WorkerMessageType.PIXELS,

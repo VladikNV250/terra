@@ -1,1 +1,1 @@
-export { convertHeightsToRGBA } from './convertHeightsToRGBA'
+export { convertTerrainDataToRGBA } from './convertTerrainDataToRGBA'
