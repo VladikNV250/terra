@@ -45,9 +45,18 @@ export class TerrainEngine {
 
         this.pool.clearQueue();
         this.targetCanvas = canvas;
+        const ctx = canvas?.getContext("2d");
 
         for (let y = 0; y < Math.ceil(config.height / CHUNK_SIZE); y++) {
             for (let x = 0; x < Math.ceil(config.width / CHUNK_SIZE); x++) {
+                if (ctx) {
+                    ctx.clearRect(x * CHUNK_SIZE, y * CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE);
+                    ctx.fillStyle = "rgba(100, 100, 200, 0.1)";
+                    ctx.fillRect(x * CHUNK_SIZE, y * CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE);
+                    ctx.strokeStyle = "rgba(100, 100, 100, 0.2)";
+                    ctx.strokeRect(x * CHUNK_SIZE, y * CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE);
+                }
+
                 this.pool.enqueue({ x, y }, config, {
                     id: this.requestId,
                     offsetX: cameraOffset.x,
