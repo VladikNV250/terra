@@ -1,4 +1,4 @@
-import type { TerrainConfig } from "../types/terrain";
+import type { TerrainConfig } from "../../types/terrain";
 
 const BiomeColors: { [key: string]: [number, number, number] } = {
     DeepOcean: [30, 60, 150],
