@@ -35,7 +35,7 @@ export class TerrainWorkerPool {
     init(module: WebAssembly.Module) {
         for (let i = 0; i < this.NUM_OF_WORKERS; i++) {
             const worker = new Worker(
-                new URL("../worker/worker.ts", import.meta.url),
+                new URL("../../worker/worker.ts", import.meta.url),
                 { type: "module" },
             ) as TerrainWorker;
 

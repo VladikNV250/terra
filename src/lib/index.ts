@@ -1,1 +1,1 @@
-export { convertTerrainDataToRGBA } from './convertTerrainDataToRGBA'
+export { convertTerrainDataToRGBA, TerrainEngine } from './terrain'

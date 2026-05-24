@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { TerrainConfig } from "../types/terrain";
 import { Flex } from "@radix-ui/themes";
 import { useDrag } from "../hooks/useDrag";
-import { TerrainEngine } from "../lib/terrain/TerrainEngine";
+import { TerrainEngine } from "../lib";
 
 interface Props {
     terrainConfig: TerrainConfig;

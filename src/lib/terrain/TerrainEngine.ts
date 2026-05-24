@@ -12,14 +12,13 @@ interface GenerateOptions {
 
 export class TerrainEngine {
     private pool: TerrainWorkerPool;
-    private requestId = 0;
-    private targetCanvas: HTMLCanvasElement | null = null;
-    private resolveRender?: () => void;
-    private cameraOffset: Vector2D = { x: 0, y: 0 };
-    
     private chunkStore: ChunkStore;
 
     private currentConfig: TerrainConfig | null = null;
+    private requestId = 0;
+
+    private targetCanvas: HTMLCanvasElement | null = null;
+    private cameraOffset: Vector2D = { x: 0, y: 0 };
     private isRenderPending = false;
 
     constructor() {
@@ -52,13 +51,13 @@ export class TerrainEngine {
         onDone?.();
     }
 
-    render(options: GenerateOptions): Promise<void> {
+    render(options: GenerateOptions): void {
         const { canvas, config } = options;
-        if (!canvas) return Promise.resolve();
+        if (!canvas) return;
 
         this.targetCanvas = canvas;
         const ctx = canvas.getContext("2d");
-        if (!ctx) return Promise.resolve();
+        if (!ctx) return;
 
         if (!isEqual(this.currentConfig, config)) {
             this.currentConfig = config;
@@ -100,14 +99,6 @@ export class TerrainEngine {
                 }
             }
         }
-
-        return new Promise((resolve) => {
-            this.resolveRender = resolve;
-
-            if (this.pool.isIdle()) {
-                this.resolveRender();
-            }
-        });
     }
 
     private requestRender() {
@@ -128,23 +119,24 @@ export class TerrainEngine {
 
     private async onChunkDone(result: ChunkResult) {
         const { pixels, id, x, y } = result;
-        const chunkKey = `${x}-${y}`;
-        const bitmap = await createImageBitmap(
-            new ImageData(
-                new Uint8ClampedArray(pixels),
-                CHUNK_SIZE,
-                CHUNK_SIZE,
-            ),
-        );
-
-        this.chunkStore.set(chunkKey, bitmap);
-
+        
         if (id !== this.requestId) return;
+        
+        const chunkKey = `${x}-${y}`;
 
-        this.requestRender();
+        try {
+            const bitmap = await createImageBitmap(
+                new ImageData(
+                    new Uint8ClampedArray(pixels),
+                    CHUNK_SIZE,
+                    CHUNK_SIZE,
+                ),
+            );
 
-        if (this.pool.isIdle()) {
-            this.resolveRender?.();
+            this.chunkStore.set(chunkKey, bitmap);
+            this.requestRender();
+        } catch (error) {
+            console.error(`Failed to create ImageBitmap for chunk ${chunkKey}:`, error);
         }
     }
 }
