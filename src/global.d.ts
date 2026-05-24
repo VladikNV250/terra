@@ -16,6 +16,8 @@ interface TerrainConfigGo {
     offsetY: number;
     startY: number;
     endY: number;
+    startX: number;
+    endX: number;
 }
 
 type Generate = (config: TerrainConfigGo) => Uint8Array;

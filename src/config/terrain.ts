@@ -11,3 +11,5 @@ export const terrainConfigDefault: TerrainConfig = {
     moistureScale: 400,
     viewMode: "Biome",
 };
+
+export const CHUNK_SIZE = 256;

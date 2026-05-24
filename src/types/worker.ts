@@ -24,7 +24,7 @@ export type WorkerMessage<
 
 export type ReadyWorkerMessage = WorkerMessage<typeof WorkerMessageType.READY>;
 
-export type PixelsPayload = Pick<ChunkMetadata, "id" | "startY" | "endY"> & {
+export type PixelsPayload = Omit<ChunkMetadata, "offsetX" | "offsetY"> & {
     pixels: Uint8ClampedArray;
 };
 

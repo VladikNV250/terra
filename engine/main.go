@@ -67,6 +67,8 @@ type TerrainConfig struct {
 	height        int
 	startY        int
 	endY          int
+	startX        int
+	endX          int
 	offsetX       int
 	offsetY       int
 	tempScale     int
@@ -100,6 +102,8 @@ func getParameters(config js.Value) TerrainConfig {
 		height:        getJSValue(config, "height", DefaultWorldHeight).(int),
 		startY:        getJSValue(config, "startY", 0).(int),
 		endY:          getJSValue(config, "endY", DefaultWorldHeight).(int),
+		startX:        getJSValue(config, "startX", 0).(int),
+		endX:          getJSValue(config, "endX", DefaultWorldWidth).(int),
 		offsetX:       getJSValue(config, "offsetX", 0).(int),
 		offsetY:       getJSValue(config, "offsetY", 0).(int),
 		tempScale:     getJSValue(config, "tempScale", 2000).(int),
@@ -120,16 +124,18 @@ func main() {
 		temperaturePerlin := perlin.New(params.seed + 1)
 		moisturePerlin := perlin.New(params.seed + 2)
 		chunkHeight := params.endY - params.startY
-		size := chunkHeight * params.width * 3
+		chunkWidth := params.endX - params.startX
+		size := chunkHeight * chunkWidth * 3
 		terrainData := make([]uint8, size)
 
 		for absoluteY := params.startY; absoluteY < params.endY; absoluteY++ {
 			relativeY := absoluteY - params.startY
-			for x := 0; x < params.width; x++ {
+			for absoluteX := params.startX; absoluteX < params.endX; absoluteX++ {
+				relativeX := absoluteX - params.startX 
 				height := getNoiseValue(
 					&NoiseParams{
 						perlin:    heightPerlin,
-						x:         x + 100000,
+						x:         absoluteX + 100000,
 						y:         absoluteY + 100000,
 						offsetX:   params.offsetX,
 						offsetY:   params.offsetY,
@@ -143,7 +149,7 @@ func main() {
 				temperature := getNoiseValue(
 					&NoiseParams{
 						perlin:    temperaturePerlin,
-						x:         x - 100000,
+						x:         absoluteX - 100000,
 						y:         absoluteY - 100000,
 						offsetX:   params.offsetX,
 						offsetY:   params.offsetY,
@@ -157,7 +163,7 @@ func main() {
 				moisture := getNoiseValue(
 					&NoiseParams{
 						perlin:    moisturePerlin,
-						x:         x,
+						x:         absoluteX,
 						y:         absoluteY,
 						offsetX:   params.offsetX,
 						offsetY:   params.offsetY,
@@ -168,7 +174,7 @@ func main() {
 					},
 				)
 
-				idx := (relativeY*params.width + x) * 3
+				idx := (relativeY*chunkWidth + relativeX) * 3
 
 				terrainData[idx] = height
 				terrainData[idx+1] = temperature

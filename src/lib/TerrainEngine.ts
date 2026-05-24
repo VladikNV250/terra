@@ -1,7 +1,7 @@
+import { CHUNK_SIZE } from "../config/terrain";
 import type { Vector2D } from "../types/math";
 import type { TerrainConfig } from "../types/terrain";
-import { WorkerMessageType, type WorkerOutputMessage } from "../types/worker";
-import type { TerrainWorker } from "../worker/worker";
+import { TerrainWorkerPool, type ChunkResult } from "./TerrainWorkerPool";
 
 interface GenerateOptions {
     config: TerrainConfig;
@@ -10,137 +10,88 @@ interface GenerateOptions {
 }
 
 export class TerrainEngine {
-    private readonly NUM_OF_WORKERS = navigator.hardwareConcurrency || 4;
-
-    private readyWorkers = 0;
-    private workers: TerrainWorker[] = [];
-    private bufferCanvas: HTMLCanvasElement = document.createElement("canvas");
-    private chunksReady = 0;
+    private pool: TerrainWorkerPool;
     private requestId = 0;
-
     private targetCanvas: HTMLCanvasElement | null = null;
-    private targetWidth: number = 0;
-    private onEngineReady?: () => void;
     private resolveRender?: () => void;
 
     constructor() {
-        this.handleWorkerMessage = this.handleWorkerMessage.bind(this);
+        this.pool = new TerrainWorkerPool();
+        this.onChunkDone = this.onChunkDone.bind(this);
+        this.pool.events.on("chunkDone", this.onChunkDone);
     }
 
     async init(onReady?: () => void): Promise<void> {
-        this.onEngineReady = onReady;
+        if (onReady) {
+            this.pool.events.on("ready", onReady);
+        }
         try {
             const response = await fetch("/main.wasm");
             const module = await WebAssembly.compileStreaming(response);
-
-            for (let i = 0; i < this.NUM_OF_WORKERS; i++) {
-                const worker = new Worker(
-                    new URL("../worker/worker.ts", import.meta.url),
-                    { type: "module" },
-                ) as TerrainWorker;
-
-                worker.onmessage = this.handleWorkerMessage;
-
-                worker.postMessage({
-                    type: WorkerMessageType.INIT,
-                    payload: { module },
-                });
-
-                this.workers.push(worker);
-            }
+            this.pool.init(module);
         } catch (error) {
             console.error("Failed to initialize workers:", error);
         }
     }
 
     destroy(onDone?: () => void): void {
-        this.workers.forEach((worker) => worker.terminate());
-        this.workers = [];
-        this.readyWorkers = 0;
+        this.pool.destroy();
         onDone?.();
     }
 
     generate(options: GenerateOptions): Promise<void> {
         const { cameraOffset, canvas, config } = options;
         this.requestId++;
-        this.resizeBuffer(config.width, config.height);
 
+        this.pool.clearQueue();
         this.targetCanvas = canvas;
-        this.targetWidth = config.width;
+        const ctx = canvas?.getContext("2d");
 
-        const totalHeight = config.height;
-        const chunkHeight = Math.floor(totalHeight / this.NUM_OF_WORKERS);
+        for (let y = 0; y < Math.ceil(config.height / CHUNK_SIZE); y++) {
+            for (let x = 0; x < Math.ceil(config.width / CHUNK_SIZE); x++) {
+                if (ctx) {
+                    ctx.clearRect(x * CHUNK_SIZE, y * CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE);
+                    ctx.fillStyle = "rgba(100, 100, 200, 0.1)";
+                    ctx.fillRect(x * CHUNK_SIZE, y * CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE);
+                    ctx.strokeStyle = "rgba(100, 100, 100, 0.2)";
+                    ctx.strokeRect(x * CHUNK_SIZE, y * CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE);
+                }
 
-        this.chunksReady = 0;
-        const isLastChunk = (i: number) => i === this.NUM_OF_WORKERS - 1;
-        this.workers.forEach((worker, i) => {
-            const startY = chunkHeight * i;
-            const endY = isLastChunk(i) ? totalHeight : startY + chunkHeight;
-
-            worker.postMessage({
-                type: WorkerMessageType.CONFIG,
-                payload: {
-                    config: config,
-                    metadata: {
-                        id: this.requestId,
-                        offsetX: cameraOffset.x,
-                        offsetY: cameraOffset.y,
-                        startY,
-                        endY,
-                    },
-                },
-            });
-        });
+                this.pool.enqueue({ x, y }, config, {
+                    id: this.requestId,
+                    offsetX: cameraOffset.x,
+                    offsetY: cameraOffset.y,
+                });
+            }
+        }
 
         return new Promise((resolve) => {
             this.resolveRender = resolve;
+
+            if (this.pool.isIdle()) {
+                this.resolveRender();
+            }
         });
     }
 
-    private handleWorkerMessage(e: MessageEvent<WorkerOutputMessage>) {
-        const message = e.data;
+    private onChunkDone(result: ChunkResult) {
+        const { pixels, id, x, y } = result;
 
-        if (message.type === WorkerMessageType.READY) {
-            this.readyWorkers++;
-            if (this.readyWorkers === this.NUM_OF_WORKERS) {
-                this.onEngineReady?.();
-            }
-            return;
+        if (id !== this.requestId) return;
+
+        const imageData = new ImageData(
+            new Uint8ClampedArray(pixels),
+            CHUNK_SIZE,
+            CHUNK_SIZE,
+        );
+
+        this.targetCanvas
+            ?.getContext("2d")
+            ?.putImageData(imageData, x * CHUNK_SIZE, y * CHUNK_SIZE);
+
+        if (this.pool.isIdle()) {
+            this.resolveRender?.();
         }
-
-        if (message.type === WorkerMessageType.PIXELS) {
-            const { pixels, id, startY, endY } = message.payload;
-            if (id !== this.requestId) return;
-
-            const chunkHeight = endY - startY;
-            const imageData = new ImageData(
-                new Uint8ClampedArray(pixels),
-                this.targetWidth,
-                chunkHeight,
-            );
-
-            this.bufferCanvas
-                .getContext("2d")
-                ?.putImageData(imageData, 0, startY);
-            this.chunksReady++;
-
-            if (this.targetCanvas && this.chunksReady === this.NUM_OF_WORKERS) {
-                const ctx = this.targetCanvas.getContext("2d");
-                ctx?.drawImage(this.bufferCanvas, 0, 0);
-                this.chunksReady = 0;
-                this.resolveRender?.();
-            }
-        }
-    }
-
-    private resizeBuffer(width: number, height: number): void {
-        if (
-            this.bufferCanvas.width === width &&
-            this.bufferCanvas.height === height
-        )
-            return;
-
-        this.bufferCanvas.width = width;
-        this.bufferCanvas.height = height;
     }
 }
+
