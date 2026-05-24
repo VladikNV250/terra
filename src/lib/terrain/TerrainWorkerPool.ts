@@ -1,7 +1,7 @@
 import mitt from "mitt";
-import type { TerrainWorker } from "../worker/worker";
-import { WorkerMessageType, type WorkerOutputMessage } from "../types/worker";
-import type { TerrainConfig, ChunkMetadata } from "../types/terrain";
+import type { ChunkMetadata, TerrainConfig } from "../../types/terrain";
+import { WorkerMessageType, type WorkerOutputMessage } from "../../types/worker";
+import type { TerrainWorker } from "../../worker/worker";
 
 export interface ChunkRequest {
     x: number;

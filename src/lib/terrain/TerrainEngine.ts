@@ -1,8 +1,9 @@
-import { CHUNK_SIZE } from "../config/terrain";
-import type { Vector2D } from "../types/math";
-import type { TerrainConfig } from "../types/terrain";
+import { CHUNK_SIZE } from "../../config/terrain";
+import type { Vector2D } from "../../types/math";
+import type { TerrainConfig } from "../../types/terrain";
 import { TerrainWorkerPool, type ChunkResult } from "./TerrainWorkerPool";
 import { isEqual } from "lodash";
+import { ChunkStore } from "./ChunkStore";
 
 interface GenerateOptions {
     config: TerrainConfig;
@@ -15,13 +16,15 @@ export class TerrainEngine {
     private targetCanvas: HTMLCanvasElement | null = null;
     private resolveRender?: () => void;
     private cameraOffset: Vector2D = { x: 0, y: 0 };
-    private chunkCache: Map<string, ImageBitmap> = new Map();
-    private renderingChunks: Set<string> = new Set();
+    
+    private chunkStore: ChunkStore;
+
     private currentConfig: TerrainConfig | null = null;
     private isRenderPending = false;
 
     constructor() {
         this.pool = new TerrainWorkerPool();
+        this.chunkStore = new ChunkStore(300);
         this.onChunkDone = this.onChunkDone.bind(this);
         this.pool.events.on("chunkDone", this.onChunkDone);
     }
@@ -45,6 +48,7 @@ export class TerrainEngine {
 
     destroy(onDone?: () => void): void {
         this.pool.destroy();
+        this.chunkStore.clear();
         onDone?.();
     }
 
@@ -54,25 +58,21 @@ export class TerrainEngine {
 
         this.targetCanvas = canvas;
         const ctx = canvas.getContext("2d");
+        if (!ctx) return Promise.resolve();
 
         if (!isEqual(this.currentConfig, config)) {
             this.currentConfig = config;
             this.requestId++;
             this.pool.clearQueue();
-            this.chunkCache.clear();
-            this.renderingChunks.clear();
+            this.chunkStore.clear();
         }
 
-        ctx?.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         const startChunkX = Math.floor(this.cameraOffset.x / CHUNK_SIZE);
         const startChunkY = Math.floor(this.cameraOffset.y / CHUNK_SIZE);
-        const endChunkX = Math.ceil(
-            (canvas.width + this.cameraOffset.x) / CHUNK_SIZE,
-        );
-        const endChunkY = Math.ceil(
-            (canvas.height + this.cameraOffset.y) / CHUNK_SIZE,
-        );
+        const endChunkX = Math.ceil((canvas.width + this.cameraOffset.x) / CHUNK_SIZE);
+        const endChunkY = Math.ceil((canvas.height + this.cameraOffset.y) / CHUNK_SIZE);
 
         for (let y = startChunkY; y < endChunkY; y++) {
             for (let x = startChunkX; x < endChunkX; x++) {
@@ -80,21 +80,18 @@ export class TerrainEngine {
                 const drawX = Math.floor(x * CHUNK_SIZE - this.cameraOffset.x);
                 const drawY = Math.floor(y * CHUNK_SIZE - this.cameraOffset.y);
 
-                if (this.chunkCache.has(chunkKey)) {
-                    const bitmap = this.chunkCache.get(chunkKey)!;
-                    ctx?.drawImage(bitmap, drawX, drawY);
+                if (this.chunkStore.has(chunkKey)) {
+                    ctx.drawImage(this.chunkStore.get(chunkKey)!, drawX, drawY);
                     continue;
                 }
 
-                if (ctx) {
-                    ctx.fillStyle = "rgba(100, 100, 200, 0.1)";
-                    ctx.fillRect(drawX, drawY, CHUNK_SIZE, CHUNK_SIZE);
-                    ctx.strokeStyle = "rgba(100, 100, 100, 0.2)";
-                    ctx.strokeRect(drawX, drawY, CHUNK_SIZE, CHUNK_SIZE);
-                }
+                ctx.fillStyle = "rgba(100, 100, 200, 0.1)";
+                ctx.fillRect(drawX, drawY, CHUNK_SIZE, CHUNK_SIZE);
+                ctx.strokeStyle = "rgba(100, 100, 100, 0.2)";
+                ctx.strokeRect(drawX, drawY, CHUNK_SIZE, CHUNK_SIZE);
 
-                if (!this.renderingChunks.has(chunkKey)) {
-                    this.renderingChunks.add(chunkKey);
+                if (!this.chunkStore.isRendering(chunkKey)) {
+                    this.chunkStore.markRendering(chunkKey);
                     this.pool.enqueue({ x, y }, config, {
                         id: this.requestId,
                         offsetX: 0,
@@ -140,8 +137,7 @@ export class TerrainEngine {
             ),
         );
 
-        this.chunkCache.set(chunkKey, bitmap);
-        this.renderingChunks.delete(chunkKey);
+        this.chunkStore.set(chunkKey, bitmap);
 
         if (id !== this.requestId) return;
 
