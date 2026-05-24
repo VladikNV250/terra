@@ -1,19 +1,34 @@
-import { useState, type SubmitEvent } from "react";
+import { useState, useEffect, type SubmitEvent } from "react";
 import type { ViewMode } from "../types/terrain";
 import { terrainConfigDefault } from "../config/terrain";
 
 export const useMapControl = () => {
-    const [terrainConfig, setTerrainConfig] = useState(terrainConfigDefault);
+    const [terrainConfig, setTerrainConfig] = useState({
+        ...terrainConfigDefault,
+        width: window.innerWidth,
+        height: window.innerHeight,
+    });
+
+    useEffect(() => {
+        const handleResize = () => {
+            setTerrainConfig((prev) => ({
+                ...prev,
+                width: window.innerWidth,
+                height: window.innerHeight,
+            }));
+        };
+
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
 
     const updateConfig = (e: SubmitEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.target);
 
-        setTerrainConfig({
+        setTerrainConfig((prev) => ({
+            ...prev,
             seed: Number(formData.get("seed")) || terrainConfigDefault.seed,
-            width: Number(formData.get("width")) || terrainConfigDefault.width,
-            height:
-                Number(formData.get("height")) || terrainConfigDefault.height,
             scale: Number(formData.get("scale")) || terrainConfigDefault.scale,
             contrast:
                 Number(formData.get("contrast")) ||
@@ -30,7 +45,7 @@ export const useMapControl = () => {
             viewMode:
                 (formData.get("viewMode") as ViewMode) ||
                 terrainConfigDefault.viewMode,
-        });
+        }));
     };
 
     return {

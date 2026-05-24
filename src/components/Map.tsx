@@ -57,14 +57,12 @@ export const Map = ({ terrainConfig }: Props) => {
         <Flex
             justify="center"
             align="center"
+            width="100%"
             height="100%"
             overflow="hidden"
             className="aspect-square cursor-grab active:cursor-grabbing"
         >
             <canvas
-                style={{
-                    transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`,
-                }}
                 className="max-w-full max-h-full object-contain"
                 ref={canvasRef}
                 width={terrainConfig.width}
