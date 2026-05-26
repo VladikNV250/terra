@@ -5,6 +5,7 @@ export const terrainConfigDefault: TerrainConfig = {
     width: 4096,
     height: 4096,
     scale: 500,
+    zoom: 1.0,
     contrast: 2.0,
     seaLevel: 110,
     tempScale: 2000,

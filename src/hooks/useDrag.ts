@@ -1,22 +1,18 @@
-import { useState, useRef, type PointerEvent, useCallback } from "react";
+import { useRef, type PointerEvent } from "react";
 import type { Vector2D } from "../types/math";
 
-
-
 interface UseDragOptions {
-    onDragEnd?: (offset: Vector2D) => void;
-    onDragMove?: (offset: Vector2D) => void;
+    onDragMove?: (delta: Vector2D) => void;
+    onDragEnd?: () => void;
 }
 
 export const useDrag = (options?: UseDragOptions) => {
     const isDraggingRef = useRef(false);
-    const dragStartRef = useRef<Vector2D>({ x: 0, y: 0 });
-    const accumulatedOffsetRef = useRef<Vector2D>({ x: 0, y: 0 });
-    const [dragOffset, setDragOffset] = useState<Vector2D>({ x: 0, y: 0 });
+    const lastPosRef = useRef<Vector2D>({ x: 0, y: 0 });
 
     const handlePointerDown = (e: PointerEvent<HTMLElement>) => {
         e.currentTarget.setPointerCapture(e.pointerId);
-        dragStartRef.current = { x: e.clientX, y: e.clientY };
+        lastPosRef.current = { x: e.clientX, y: e.clientY };
         isDraggingRef.current = true;
     };
 
@@ -28,16 +24,13 @@ export const useDrag = (options?: UseDragOptions) => {
             return;
         }
 
-        const distanceX = e.clientX - dragStartRef.current.x;
-        const distanceY = e.clientY - dragStartRef.current.y;
+        const deltaX = lastPosRef.current.x - e.clientX;
+        const deltaY = lastPosRef.current.y - e.clientY;
 
-        setDragOffset({ 
-            x: accumulatedOffsetRef.current.x - distanceX, 
-            y: accumulatedOffsetRef.current.y - distanceY 
-        });
+        lastPosRef.current = { x: e.clientX, y: e.clientY };
 
         if (options?.onDragMove) {
-            options.onDragMove(dragOffset);
+            options.onDragMove({ x: deltaX, y: deltaY });
         }
     };
 
@@ -46,24 +39,15 @@ export const useDrag = (options?: UseDragOptions) => {
         
         e.currentTarget.releasePointerCapture(e.pointerId);
         isDraggingRef.current = false;
-        
-        accumulatedOffsetRef.current = dragOffset;
 
         if (options?.onDragEnd) {
-            options.onDragEnd(dragOffset);
+            options.onDragEnd();
         }
     };
 
     const handlePointerLeave = handlePointerUp;
 
-    const resetDrag = useCallback(() => {
-        accumulatedOffsetRef.current = { x: 0, y: 0 };
-        setDragOffset({ x: 0, y: 0 })
-    }, [])
-
     return {
-        dragOffset,
-        resetDrag,
         handlers: {
             onPointerDown: handlePointerDown,
             onPointerMove: handlePointerMove,

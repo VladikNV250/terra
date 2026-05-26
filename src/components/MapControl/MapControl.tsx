@@ -133,9 +133,10 @@ export const MapControl = ({ terrainConfig, updateConfig }: Props) => {
                             </Heading>
                             <Flex gapY="3" direction="column">
                                 <ControlField
-                                    label="Scale"
-                                    name="scale"
-                                    defaultValue={terrainConfig.scale}
+                                    label="Zoom"
+                                    name="zoom"
+                                    defaultValue={terrainConfig.zoom}
+                                    step={0.1}
                                 />
                                 <ControlField
                                     label="Contrast"

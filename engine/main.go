@@ -49,8 +49,8 @@ type NoiseParams struct {
 }
 
 func getNoiseValue(params *NoiseParams) uint8 {
-	noiseX := float64(params.x+params.offsetX) / float64(params.scale)
-	noiseY := float64(params.y+params.offsetY) / float64(params.scale)
+	noiseX := float64(params.x)/float64(params.scale) + float64(params.offsetX)
+	noiseY := float64(params.y)/float64(params.scale) + float64(params.offsetY)
 
 	noise := params.perlin.FractalNoise(noiseX, noiseY, params.octaves, params.frequency)
 	noise = (noise + 1.0) / 2.0
@@ -135,10 +135,10 @@ func main() {
 				height := getNoiseValue(
 					&NoiseParams{
 						perlin:    heightPerlin,
-						x:         absoluteX + 100000,
-						y:         absoluteY + 100000,
-						offsetX:   params.offsetX,
-						offsetY:   params.offsetY,
+						x:         absoluteX,
+						y:         absoluteY,
+						offsetX:   params.offsetX + 100000,
+						offsetY:   params.offsetY + 100000,
 						scale:     params.scale,
 						octaves:   DefaultHeightOctaves,
 						contrast:  params.contrast,
@@ -149,10 +149,10 @@ func main() {
 				temperature := getNoiseValue(
 					&NoiseParams{
 						perlin:    temperaturePerlin,
-						x:         absoluteX - 100000,
-						y:         absoluteY - 100000,
-						offsetX:   params.offsetX,
-						offsetY:   params.offsetY,
+						x:         absoluteX,
+						y:         absoluteY,
+						offsetX:   params.offsetX - 100000,
+						offsetY:   params.offsetY - 100000,
 						scale:     params.tempScale,
 						octaves:   DefaultTemperatureOctaves,
 						contrast:  DefaultTemperatureContrast,

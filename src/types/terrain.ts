@@ -5,6 +5,7 @@ export interface TerrainConfig {
     width: number;
     height: number;
     scale: number;
+    zoom: number;
     contrast: number;
     seaLevel: number;
     tempScale: number;

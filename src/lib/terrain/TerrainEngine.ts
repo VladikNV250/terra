@@ -41,8 +41,19 @@ export class TerrainEngine {
         }
     }
 
+    moveCamera(delta: Vector2D) {
+        this.cameraOffset.x += delta.x;
+        this.cameraOffset.y += delta.y;
+        this.requestRender();
+    }
+
     setCamera(offset: Vector2D) {
         this.cameraOffset = offset;
+        this.requestRender();
+    }
+
+    getCamera(): Vector2D {
+        return this.cameraOffset;
     }
 
     destroy(onDone?: () => void): void {
@@ -60,6 +71,19 @@ export class TerrainEngine {
         if (!ctx) return;
 
         if (!isEqual(this.currentConfig, config)) {
+
+            const prevScale = this.currentConfig?.scale;
+            if (prevScale !== undefined && prevScale !== config.scale) {
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+
+                const wX = (centerX + this.cameraOffset.x) / prevScale;
+                const wY = (centerY + this.cameraOffset.y) / prevScale;
+
+                this.cameraOffset.x = wX * config.scale - centerX;
+                this.cameraOffset.y = wY * config.scale - centerY;
+            }
+
             this.currentConfig = config;
             this.requestId++;
             this.pool.clearQueue();

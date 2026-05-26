@@ -6,19 +6,28 @@ import { TerrainEngine } from "../lib";
 
 interface Props {
     terrainConfig: TerrainConfig;
+    onPointerMoveMap?: (coords: { x: number; y: number }) => void;
 }
 
-export const Map = ({ terrainConfig }: Props) => {
+export const Map = ({ terrainConfig, onPointerMoveMap }: Props) => {
     const canvasRef = useRef<null | HTMLCanvasElement>(null);
     const terrainEngine = useRef<TerrainEngine | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
-    const { resetDrag, handlers } = useDrag({
-        onDragMove: (offset) => {
-            if (isInitialized && terrainEngine.current) {
-                terrainEngine.current.setCamera(offset);
-                terrainEngine.current.render({
-                    config: terrainConfig,
-                    canvas: canvasRef.current,
+    
+    const effectiveScale = Math.floor(terrainConfig.scale * terrainConfig.zoom);
+    const effectiveTempScale = Math.floor(terrainConfig.tempScale * terrainConfig.zoom);
+    const effectiveMoistureScale = Math.floor(terrainConfig.moistureScale * terrainConfig.zoom);
+
+    const { handlers } = useDrag({
+        onDragMove: (delta) => {
+            if (isInitialized && terrainEngine.current && canvasRef.current) {
+                const rect = canvasRef.current.getBoundingClientRect();
+                const scaleX = canvasRef.current.width / rect.width;
+                const scaleY = canvasRef.current.height / rect.height;
+
+                terrainEngine.current.moveCamera({
+                    x: delta.x * scaleX,
+                    y: delta.y * scaleY
                 });
             }
         },
@@ -42,10 +51,38 @@ export const Map = ({ terrainConfig }: Props) => {
             return;
 
         terrainEngine.current.render({
-            config: terrainConfig,
+            config: { 
+                ...terrainConfig, 
+                scale: effectiveScale,
+                tempScale: effectiveTempScale,
+                moistureScale: effectiveMoistureScale
+            },
             canvas: canvasRef.current,
         });
-    }, [isInitialized, terrainConfig, resetDrag]);
+    }, [isInitialized, terrainConfig, effectiveScale, effectiveTempScale, effectiveMoistureScale]);
+
+    const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+        handlers.onPointerMove(e);
+
+        if (onPointerMoveMap && canvasRef.current && terrainEngine.current) {
+            const canvas = canvasRef.current;
+            const rect = canvas.getBoundingClientRect();
+            
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            const cameraOffset = terrainEngine.current.getCamera();
+
+            const px = (e.clientX - rect.left) * scaleX + cameraOffset.x;
+            const py = (e.clientY - rect.top) * scaleY + cameraOffset.y;
+
+            const zoom = terrainConfig.zoom || 1.0;
+            const x = Math.floor(px / zoom);
+            const y = Math.floor(py / zoom);
+
+            onPointerMoveMap({ x, y });
+        }
+    };
 
     return (
         <Flex
@@ -62,6 +99,7 @@ export const Map = ({ terrainConfig }: Props) => {
                 width={terrainConfig.width}
                 height={terrainConfig.height}
                 {...handlers}
+                onPointerMove={handlePointerMove}
             />
         </Flex>
     );

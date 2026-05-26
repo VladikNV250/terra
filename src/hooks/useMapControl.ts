@@ -29,7 +29,8 @@ export const useMapControl = () => {
         setTerrainConfig((prev) => ({
             ...prev,
             seed: Number(formData.get("seed")) || terrainConfigDefault.seed,
-            scale: Number(formData.get("scale")) || terrainConfigDefault.scale,
+            scale: terrainConfigDefault.scale, 
+            zoom: Number(formData.get("zoom")) || terrainConfigDefault.zoom,
             contrast:
                 Number(formData.get("contrast")) ||
                 terrainConfigDefault.contrast,
