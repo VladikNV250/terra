@@ -4,6 +4,7 @@ import { Flex } from "@radix-ui/themes";
 import { useDrag } from "../hooks/useDrag";
 import { TerrainEngine } from "../lib";
 import { useErrorBoundary } from "react-error-boundary";
+import { EngineLoader } from "./EngineLoader";
 
 interface Props {
     terrainConfig: TerrainConfig;
@@ -102,10 +103,11 @@ export const Map = ({ terrainConfig, onPointerMoveMap, onZoom }: Props) => {
             width="100%"
             height="100%"
             overflow="hidden"
-            className="aspect-square cursor-grab active:cursor-grabbing"
+            className="aspect-square cursor-grab active:cursor-grabbing relative"
         >
+            {!isInitialized && <EngineLoader />}
             <canvas
-                className="max-w-full max-h-full object-contain touch-none"
+                className={`max-w-full max-h-full object-contain touch-none ${!isInitialized ? 'opacity-0' : 'opacity-100 transition-opacity duration-500'}`}
                 ref={canvasRef}
                 width={terrainConfig.width}
                 height={terrainConfig.height}
