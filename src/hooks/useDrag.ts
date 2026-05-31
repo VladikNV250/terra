@@ -19,7 +19,7 @@ export const useDrag = (options?: UseDragOptions) => {
     const handlePointerMove = (e: PointerEvent<HTMLElement>) => {
         if (!isDraggingRef.current) return;
 
-        if (e.buttons !== 1) {
+        if (e.pointerType === 'mouse' && e.buttons !== 1) {
             isDraggingRef.current = false;
             return;
         }

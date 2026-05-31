@@ -94,7 +94,7 @@ export const Map = ({ terrainConfig, onPointerMoveMap }: Props) => {
             className="aspect-square cursor-grab active:cursor-grabbing"
         >
             <canvas
-                className="max-w-full max-h-full object-contain"
+                className="max-w-full max-h-full object-contain touch-none"
                 ref={canvasRef}
                 width={terrainConfig.width}
                 height={terrainConfig.height}
