@@ -18,6 +18,7 @@ export interface ChunkResult {
 type Events = {
     ready: void;
     chunkDone: ChunkResult;
+    error: Error;
 };
 
 export class TerrainWorkerPool {
@@ -40,6 +41,9 @@ export class TerrainWorkerPool {
             ) as TerrainWorker;
 
             worker.onmessage = (e) => this.handleWorkerMessage(worker, e);
+            worker.onerror = (e) => {
+                this.events.emit("error", new Error(`Worker error: ${e.message || 'Failed to load worker script'}`));
+            };
 
             worker.postMessage({
                 type: WorkerMessageType.INIT,

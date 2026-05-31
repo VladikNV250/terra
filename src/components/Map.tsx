@@ -3,6 +3,7 @@ import type { TerrainConfig } from "../types/terrain";
 import { Flex } from "@radix-ui/themes";
 import { useDrag } from "../hooks/useDrag";
 import { TerrainEngine } from "../lib";
+import { useErrorBoundary } from "react-error-boundary";
 
 interface Props {
     terrainConfig: TerrainConfig;
@@ -14,6 +15,7 @@ export const Map = ({ terrainConfig, onPointerMoveMap, onZoom }: Props) => {
     const canvasRef = useRef<null | HTMLCanvasElement>(null);
     const terrainEngine = useRef<TerrainEngine | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
+    const { showBoundary } = useErrorBoundary();
     
     const effectiveScale = Math.floor(terrainConfig.scale * terrainConfig.zoom);
     const effectiveTempScale = Math.floor(terrainConfig.tempScale * terrainConfig.zoom);
@@ -36,16 +38,18 @@ export const Map = ({ terrainConfig, onPointerMoveMap, onZoom }: Props) => {
 
     useEffect(() => {
         terrainEngine.current = new TerrainEngine();
-        terrainEngine.current.init(() => {
-            setIsInitialized(true);
-        });
+        
+        terrainEngine.current.init(
+            () => setIsInitialized(true),
+            showBoundary
+        ).catch(showBoundary);
 
         return () => {
             if (terrainEngine.current) {
                 terrainEngine.current.destroy();
             }
         };
-    }, []);
+    }, [showBoundary]);
 
     useEffect(() => {
         if (!isInitialized || !terrainEngine.current || !canvasRef.current)

@@ -21,6 +21,8 @@ export class TerrainEngine {
     private cameraOffset: Vector2D = { x: 0, y: 0 };
     private isRenderPending = false;
 
+    private onRenderError?: (error: Error) => void;
+
     constructor() {
         this.pool = new TerrainWorkerPool();
         this.chunkStore = new ChunkStore(300);
@@ -28,16 +30,26 @@ export class TerrainEngine {
         this.pool.events.on("chunkDone", this.onChunkDone);
     }
 
-    async init(onReady?: () => void): Promise<void> {
+    async init(onReady?: () => void, onError?: (error: Error) => void): Promise<void> {
         if (onReady) {
             this.pool.events.on("ready", onReady);
         }
+        if (onError) {
+            this.onRenderError = onError;
+            this.pool.events.on("error", onError);
+        }
+        
         try {
             const response = await fetch("/main.wasm");
+            if (!response.ok) {
+                throw new Error(`Failed to fetch WebAssembly module: ${response.status} ${response.statusText}`);
+            }
             const module = await WebAssembly.compileStreaming(response);
             this.pool.init(module);
         } catch (error) {
-            console.error("Failed to initialize workers:", error);
+            const err = error instanceof Error ? error : new Error(String(error));
+            console.error("Failed to initialize TerrainEngine:", err);
+            throw err;
         }
     }
 
@@ -161,6 +173,9 @@ export class TerrainEngine {
             this.requestRender();
         } catch (error) {
             console.error(`Failed to create ImageBitmap for chunk ${chunkKey}:`, error);
+            if (this.onRenderError) {
+                this.onRenderError(error instanceof Error ? error : new Error(String(error)));
+            }
         }
     }
 }
