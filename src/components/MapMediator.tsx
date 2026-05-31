@@ -1,6 +1,7 @@
 import { Box, Flex, Text } from "@radix-ui/themes";
 import { Map } from "./Map";
 import { MapControl } from "./MapControl";
+import { WelcomeModal } from "./WelcomeModal";
 import { useMapControl } from "../hooks";
 import { useState } from "react";
 
@@ -35,6 +36,8 @@ export const MapMediator = () => {
                     updateConfig={updateConfig}
                 />
             </Box>
+
+            <WelcomeModal />
         </Box>
     );
 };
