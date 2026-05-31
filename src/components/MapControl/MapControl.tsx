@@ -21,6 +21,21 @@ interface Props {
 
 export const MapControl = ({ terrainConfig, updateConfig }: Props) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [draft, setDraft] = useState<Partial<TerrainConfig>>({});
+
+    const currentConfig = { ...terrainConfig, ...draft };
+
+    const handleChange = (name: keyof TerrainConfig, value: string) => {
+        setDraft((prev) => ({
+            ...prev,
+            [name]: name === "viewMode" ? value : Number(value),
+        }));
+    };
+
+    const handleSubmit = (e: SubmitEvent<HTMLFormElement>) => {
+        updateConfig(e);
+        setDraft({});
+    };
 
     return (
         <Box className="relative h-full pointer-events-none flex justify-end">
@@ -69,7 +84,7 @@ export const MapControl = ({ terrainConfig, updateConfig }: Props) => {
                 <Separator size="4" />
 
                 <form
-                    onSubmit={updateConfig}
+                    onSubmit={handleSubmit}
                     className="flex-1 flex flex-col overflow-hidden"
                 >
                     <Box className="flex-1 overflow-y-auto pr-3 mb-4 space-y-6">
@@ -79,7 +94,8 @@ export const MapControl = ({ terrainConfig, updateConfig }: Props) => {
                             </Heading>
                             <RadioGroup.Root
                                 name="viewMode"
-                                defaultValue={terrainConfig.viewMode}
+                                value={currentConfig.viewMode}
+                                onValueChange={(val) => handleChange("viewMode", val)}
                             >
                                 <Flex gap="2" direction="column">
                                     <Text as="label" size="2">
@@ -120,7 +136,8 @@ export const MapControl = ({ terrainConfig, updateConfig }: Props) => {
                                 <ControlField
                                     label="Seed"
                                     name="seed"
-                                    defaultValue={terrainConfig.seed}
+                                    value={currentConfig.seed}
+                                    onChange={(val) => handleChange("seed", val)}
                                 />
                             </Flex>
                         </Box>
@@ -135,19 +152,22 @@ export const MapControl = ({ terrainConfig, updateConfig }: Props) => {
                                 <ControlField
                                     label="Zoom"
                                     name="zoom"
-                                    defaultValue={terrainConfig.zoom}
+                                    value={currentConfig.zoom}
+                                    onChange={(val) => handleChange("zoom", val)}
                                     step={0.1}
                                 />
                                 <ControlField
                                     label="Contrast"
                                     name="contrast"
-                                    defaultValue={terrainConfig.contrast}
+                                    value={currentConfig.contrast}
+                                    onChange={(val) => handleChange("contrast", val)}
                                     step={0.1}
                                 />
                                 <ControlField
                                     label="Sea Level"
                                     name="seaLevel"
-                                    defaultValue={terrainConfig.seaLevel}
+                                    value={currentConfig.seaLevel}
+                                    onChange={(val) => handleChange("seaLevel", val)}
                                 />
                             </Flex>
                         </Box>
@@ -162,7 +182,8 @@ export const MapControl = ({ terrainConfig, updateConfig }: Props) => {
                                 <ControlField
                                     label="Temp Scale"
                                     name="tempScale"
-                                    defaultValue={terrainConfig.tempScale}
+                                    value={currentConfig.tempScale}
+                                    onChange={(val) => handleChange("tempScale", val)}
                                 />
                             </Flex>
                         </Box>
@@ -177,7 +198,8 @@ export const MapControl = ({ terrainConfig, updateConfig }: Props) => {
                                 <ControlField
                                     label="Moisture Scale"
                                     name="moistureScale"
-                                    defaultValue={terrainConfig.moistureScale}
+                                    value={currentConfig.moistureScale}
+                                    onChange={(val) => handleChange("moistureScale", val)}
                                 />
                             </Flex>
                         </Box>

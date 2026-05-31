@@ -7,9 +7,10 @@ import { TerrainEngine } from "../lib";
 interface Props {
     terrainConfig: TerrainConfig;
     onPointerMoveMap?: (coords: { x: number; y: number }) => void;
+    onZoom?: (newZoom: number) => void;
 }
 
-export const Map = ({ terrainConfig, onPointerMoveMap }: Props) => {
+export const Map = ({ terrainConfig, onPointerMoveMap, onZoom }: Props) => {
     const canvasRef = useRef<null | HTMLCanvasElement>(null);
     const terrainEngine = useRef<TerrainEngine | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
@@ -84,6 +85,12 @@ export const Map = ({ terrainConfig, onPointerMoveMap }: Props) => {
         }
     };
 
+    const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+        if (!onZoom) return;
+        const zoomDelta = e.deltaY * -0.001;
+        onZoom(terrainConfig.zoom + zoomDelta);
+    };
+
     return (
         <Flex
             justify="center"
@@ -100,6 +107,7 @@ export const Map = ({ terrainConfig, onPointerMoveMap }: Props) => {
                 height={terrainConfig.height}
                 {...handlers}
                 onPointerMove={handlePointerMove}
+                onWheel={handleWheel}
             />
         </Flex>
     );

@@ -49,8 +49,16 @@ export const useMapControl = () => {
         }));
     };
 
+    const updateZoom = (newZoom: number) => {
+        setTerrainConfig((prev) => ({
+            ...prev,
+            zoom: Math.max(0.1, Number(newZoom.toFixed(2))),
+        }));
+    };
+
     return {
         terrainConfig,
         updateConfig,
+        updateZoom,
     };
 };

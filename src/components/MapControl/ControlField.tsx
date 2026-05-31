@@ -3,7 +3,8 @@ import { Text, TextField } from "@radix-ui/themes";
 interface Props {
     label: string;
     name: string;
-    defaultValue: number;
+    value: number | string;
+    onChange: (val: string) => void;
     step?: number;
     type?: "number";
 }
@@ -11,22 +12,22 @@ interface Props {
 export const ControlField = ({
     label,
     name,
-    defaultValue,
+    value,
+    onChange,
     step,
     type = "number",
-}: Props) => {
-    return (
-        <label htmlFor={name}>
-            <Text as="div" size="2" mb="1" weight="bold">
-                {label}
-            </Text>
-            <TextField.Root
-                name={name}
-                type={type}
-                step={step}
-                placeholder={label}
-                defaultValue={defaultValue}
-            />
-        </label>
-    );
-};
+}: Props) => (
+    <label htmlFor={name}>
+        <Text as="div" size="2" mb="1" weight="bold">
+            {label}
+        </Text>
+        <TextField.Root
+            name={name}
+            type={type}
+            step={step}
+            placeholder={label}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+        />
+    </label>
+);
