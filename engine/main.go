@@ -111,6 +111,8 @@ func getParameters(config js.Value) TerrainConfig {
 	}
 }
 
+var terrainDataBuffer []uint8
+
 func main() {
 	js.Global().Set("generate", js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) == 0 {
@@ -126,7 +128,11 @@ func main() {
 		chunkHeight := params.endY - params.startY
 		chunkWidth := params.endX - params.startX
 		size := chunkHeight * chunkWidth * 3
-		terrainData := make([]uint8, size)
+		
+		if cap(terrainDataBuffer) < size {
+			terrainDataBuffer = make([]uint8, size)
+		}
+		terrainData := terrainDataBuffer[:size]
 
 		for absoluteY := params.startY; absoluteY < params.endY; absoluteY++ {
 			relativeY := absoluteY - params.startY
