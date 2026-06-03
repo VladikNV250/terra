@@ -12,7 +12,12 @@ export class ChunkStore {
     }
 
     public get(key: string): ImageBitmap | undefined {
-        return this.cache.get(key);
+        const bitmap = this.cache.get(key);
+        if (bitmap !== undefined) {
+            this.cache.delete(key);
+            this.cache.set(key, bitmap);
+        }
+        return bitmap;
     }
 
     public set(key: string, bitmap: ImageBitmap): void {
@@ -39,11 +44,17 @@ export class ChunkStore {
 
     private runGarbageCollection() {
         if (this.cache.size > this.maxCacheSize) {
-            const oldestKey = this.cache.keys().next().value;
-            if (oldestKey) {
-                const bitmap = this.cache.get(oldestKey);
-                bitmap?.close(); 
-                this.cache.delete(oldestKey);
+            const targetSize = Math.floor(this.maxCacheSize * 0.9);
+            const keysToRemove = this.cache.size - targetSize;
+            const keysIterator = this.cache.keys();
+
+            for (let i = 0; i < keysToRemove; i++) {
+                const oldestKey = keysIterator.next().value;
+                if (oldestKey !== undefined) {
+                    const bitmap = this.cache.get(oldestKey);
+                    bitmap?.close(); 
+                    this.cache.delete(oldestKey);
+                }
             }
         }
     }
