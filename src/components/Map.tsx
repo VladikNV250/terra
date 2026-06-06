@@ -1,32 +1,120 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { TerrainConfig } from "../types/terrain";
+import { Flex } from "@radix-ui/themes";
+import { useDrag } from "../hooks/useDrag";
+import { TerrainEngine } from "../lib";
+import { useErrorBoundary } from "react-error-boundary";
+import { EngineLoader } from "./EngineLoader";
 
 interface Props {
-    seed: number;
+    terrainConfig: TerrainConfig;
+    onPointerMoveMap?: (coords: { x: number; y: number }) => void;
+    onZoom?: (newZoom: number) => void;
 }
 
-export const Map = ({ seed }: Props) => {
+export const Map = ({ terrainConfig, onPointerMoveMap, onZoom }: Props) => {
     const canvasRef = useRef<null | HTMLCanvasElement>(null);
+    const terrainEngine = useRef<TerrainEngine | null>(null);
+    const [isInitialized, setIsInitialized] = useState(false);
+    const { showBoundary } = useErrorBoundary();
+    
+    const effectiveScale = Math.floor(terrainConfig.scale * terrainConfig.zoom);
+    const effectiveTempScale = Math.floor(terrainConfig.tempScale * terrainConfig.zoom);
+    const effectiveMoistureScale = Math.floor(terrainConfig.moistureScale * terrainConfig.zoom);
+
+    const { handlers } = useDrag({
+        onDragMove: (delta) => {
+            if (isInitialized && terrainEngine.current && canvasRef.current) {
+                const rect = canvasRef.current.getBoundingClientRect();
+                const scaleX = canvasRef.current.width / rect.width;
+                const scaleY = canvasRef.current.height / rect.height;
+
+                terrainEngine.current.moveCamera({
+                    x: delta.x * scaleX,
+                    y: delta.y * scaleY
+                });
+            }
+        },
+    });
 
     useEffect(() => {
-        const go = new Go();
+        terrainEngine.current = new TerrainEngine();
+        
+        terrainEngine.current.init(
+            () => setIsInitialized(true),
+            showBoundary
+        ).catch(showBoundary);
 
-        WebAssembly.instantiateStreaming(
-            fetch("main.wasm"),
-            go.importObject,
-        ).then((result) => {
-            go.run(result.instance);
-
-            const pixels = window.generate(seed);
-
-            const clampedImageData = new Uint8ClampedArray(pixels);
-            const imageData = new ImageData(clampedImageData, 512, 512);
-
-            if (canvasRef.current) {
-                const ctx = canvasRef.current.getContext("2d");
-                ctx?.putImageData(imageData, 0, 0);
+        return () => {
+            if (terrainEngine.current) {
+                terrainEngine.current.destroy();
             }
-        });
-    }, [seed]);
+        };
+    }, [showBoundary]);
 
-    return <canvas ref={canvasRef} width={512} height={512} />;
+    useEffect(() => {
+        if (!isInitialized || !terrainEngine.current || !canvasRef.current)
+            return;
+
+        terrainEngine.current.render({
+            config: { 
+                ...terrainConfig, 
+                scale: effectiveScale,
+                tempScale: effectiveTempScale,
+                moistureScale: effectiveMoistureScale
+            },
+            canvas: canvasRef.current,
+        });
+    }, [isInitialized, terrainConfig, effectiveScale, effectiveTempScale, effectiveMoistureScale]);
+
+    const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+        handlers.onPointerMove(e);
+
+        if (onPointerMoveMap && canvasRef.current && terrainEngine.current) {
+            const canvas = canvasRef.current;
+            const rect = canvas.getBoundingClientRect();
+            
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            const cameraOffset = terrainEngine.current.getCamera();
+
+            const px = (e.clientX - rect.left) * scaleX + cameraOffset.x;
+            const py = (e.clientY - rect.top) * scaleY + cameraOffset.y;
+
+            const zoom = terrainConfig.zoom || 1.0;
+            const x = Math.floor(px / zoom);
+            const y = Math.floor(py / zoom);
+
+            onPointerMoveMap({ x, y });
+        }
+    };
+
+    const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+        if (!onZoom) return;
+        const zoomDelta = e.deltaY * -0.001;
+        onZoom(terrainConfig.zoom + zoomDelta);
+    };
+
+    return (
+        <Flex
+            justify="center"
+            align="center"
+            width="100%"
+            height="100%"
+            overflow="hidden"
+            className="aspect-square cursor-grab active:cursor-grabbing relative"
+        >
+            {!isInitialized && <EngineLoader />}
+            <canvas
+                className={`max-w-full max-h-full object-contain touch-none ${!isInitialized ? 'opacity-0' : 'opacity-100 transition-opacity duration-500'}`}
+                ref={canvasRef}
+                width={terrainConfig.width}
+                height={terrainConfig.height}
+                {...handlers}
+                onPointerMove={handlePointerMove}
+                onWheel={handleWheel}
+            />
+        </Flex>
+    );
 };

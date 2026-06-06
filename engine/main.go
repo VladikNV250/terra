@@ -1,80 +1,197 @@
 package main
 
 import (
-	"terracore/internal/perlin"
 	"syscall/js"
+	"terracore/internal/perlin"
 	"time"
 )
 
 const (
-	WorldWidth  = 512
-	WorldHeight = 512
-	Scale       = 100
-	Octaves     = 6
-	Persistence = 0.5
-	Amplitude   = 3.5
-	SeaLevel    = 110
+	DefaultWorldWidth  = 4096
+	DefaultWorldHeight = 4096
+	DefaultScale       = 400
+
+	DefaultHeightFrequency      = 1.0
+	DefaultTemperatureFrequency = 2.0
+	DefaultMoistureFrequency    = 1.0
+
+	DefaultHeightOctaves      = 6
+	DefaultTemperatureOctaves = 4
+	DefaultMoistureOctaves    = 4
+
+	DefaultHeightContrast      = 1.0
+	DefaultTemperatureContrast = 2.0
+	DefaultMoistureContrast    = 2.5
 )
 
-func paintPixel(noise float64) (r, g, b uint8) {
-	raw := noise * Amplitude
-	if raw > 1.0 {
-		raw = 1.0
+func applyContrast(val float64, contrast float64) float64 {
+	val = (val-0.5)*contrast + 0.5
+	if val < 0.0 {
+		return 0.0
 	}
-	if raw < -1.0 {
-		raw = -1.0
-	}
-	v := uint8((raw + 1.0) * 0.5 * 255)
-	if v < SeaLevel {
-		if v < SeaLevel-30 {
-			r, g, b = 30, 60, 150
-		} else {
-			r, g, b = 70, 120, 200
-		}
-	} else {
-		if v < SeaLevel+15 {
-			r, g, b = 210, 190, 130
-		} else if v < SeaLevel+60 {
-			r, g, b = 80, 160, 80
-		} else if v < SeaLevel+100 {
-			r, g, b = 130, 130, 130
-		} else {
-			r, g, b = 240, 240, 240
-		}
+	if val > 1.0 {
+		return 1.0
 	}
 
-	return r, g, b
+	return val
 }
+
+type NoiseParams struct {
+	perlin    *perlin.Perlin
+	x         int
+	y         int
+	offsetX   int
+	offsetY   int
+	scale     int
+	octaves   int
+	contrast  float64
+	frequency float64
+}
+
+func getNoiseValue(params *NoiseParams) uint8 {
+	noiseX := float64(params.x)/float64(params.scale) + float64(params.offsetX)
+	noiseY := float64(params.y)/float64(params.scale) + float64(params.offsetY)
+
+	noise := params.perlin.FractalNoise(noiseX, noiseY, params.octaves, params.frequency)
+	noise = (noise + 1.0) / 2.0
+	noise = applyContrast(noise, params.contrast)
+
+	return uint8(noise * 255)
+}
+
+type TerrainConfig struct {
+	seed          int64
+	scale         int
+	contrast      float64
+	width         int
+	height        int
+	startY        int
+	endY          int
+	startX        int
+	endX          int
+	offsetX       int
+	offsetY       int
+	tempScale     int
+	moistureScale int
+}
+
+func getJSValue(obj js.Value, key string, defaultValue any) any {
+	v := obj.Get(key)
+	if v.IsUndefined() {
+		return defaultValue
+	}
+
+	switch defaultValue.(type) {
+	case int:
+		return v.Int()
+	case float64:
+		return v.Float()
+	case int64:
+		return int64(v.Int())
+	default:
+		return defaultValue
+	}
+}
+
+func getParameters(config js.Value) TerrainConfig {
+	return TerrainConfig{
+		seed:          getJSValue(config, "seed", time.Now().UnixNano()).(int64),
+		scale:         getJSValue(config, "scale", DefaultScale).(int),
+		contrast:      getJSValue(config, "contrast", DefaultHeightContrast).(float64),
+		width:         getJSValue(config, "width", DefaultWorldWidth).(int),
+		height:        getJSValue(config, "height", DefaultWorldHeight).(int),
+		startY:        getJSValue(config, "startY", 0).(int),
+		endY:          getJSValue(config, "endY", DefaultWorldHeight).(int),
+		startX:        getJSValue(config, "startX", 0).(int),
+		endX:          getJSValue(config, "endX", DefaultWorldWidth).(int),
+		offsetX:       getJSValue(config, "offsetX", 0).(int),
+		offsetY:       getJSValue(config, "offsetY", 0).(int),
+		tempScale:     getJSValue(config, "tempScale", 2000).(int),
+		moistureScale: getJSValue(config, "moistureScale", 400).(int),
+	}
+}
+
+var terrainDataBuffer []uint8
 
 func main() {
 	js.Global().Set("generate", js.FuncOf(func(this js.Value, args []js.Value) any {
-		seed := time.Now().UnixNano()
-		if len(args) > 0 {
-			seed = int64(args[0].Int())
+		if len(args) == 0 {
+			return nil
 		}
+		config := args[0]
 
-		p := perlin.New(seed)
-		size := WorldHeight * WorldWidth * 4
-		imageData := make([]uint8, size)
+		params := getParameters(config)
 
-		for y := 0; y < WorldHeight; y++ {
-			for x := 0; x < WorldWidth; x++ {
-				noiseX := float64(x) / float64(Scale)
-				noiseY := float64(y) / float64(Scale)
-				index := (y*WorldWidth + x) * 4
-				noise := p.FractalNoise(noiseX, noiseY, Octaves, Persistence)
-				r, g, b := paintPixel(noise)
-				imageData[index] = r
-				imageData[index+1] = g
-				imageData[index+2] = b
-				imageData[index+3] = 255
+		heightPerlin := perlin.New(params.seed)
+		temperaturePerlin := perlin.New(params.seed + 1)
+		moisturePerlin := perlin.New(params.seed + 2)
+		chunkHeight := params.endY - params.startY
+		chunkWidth := params.endX - params.startX
+		size := chunkHeight * chunkWidth * 3
+		
+		if cap(terrainDataBuffer) < size {
+			terrainDataBuffer = make([]uint8, size)
+		}
+		terrainData := terrainDataBuffer[:size]
+
+		for absoluteY := params.startY; absoluteY < params.endY; absoluteY++ {
+			relativeY := absoluteY - params.startY
+			for absoluteX := params.startX; absoluteX < params.endX; absoluteX++ {
+				relativeX := absoluteX - params.startX 
+				height := getNoiseValue(
+					&NoiseParams{
+						perlin:    heightPerlin,
+						x:         absoluteX,
+						y:         absoluteY,
+						offsetX:   params.offsetX + 100000,
+						offsetY:   params.offsetY + 100000,
+						scale:     params.scale,
+						octaves:   DefaultHeightOctaves,
+						contrast:  params.contrast,
+						frequency: DefaultHeightFrequency,
+					},
+				)
+
+				temperature := getNoiseValue(
+					&NoiseParams{
+						perlin:    temperaturePerlin,
+						x:         absoluteX,
+						y:         absoluteY,
+						offsetX:   params.offsetX - 100000,
+						offsetY:   params.offsetY - 100000,
+						scale:     params.tempScale,
+						octaves:   DefaultTemperatureOctaves,
+						contrast:  DefaultTemperatureContrast,
+						frequency: DefaultTemperatureFrequency,
+					},
+				)
+
+				moisture := getNoiseValue(
+					&NoiseParams{
+						perlin:    moisturePerlin,
+						x:         absoluteX,
+						y:         absoluteY,
+						offsetX:   params.offsetX,
+						offsetY:   params.offsetY,
+						scale:     params.moistureScale,
+						octaves:   DefaultMoistureOctaves,
+						contrast:  DefaultMoistureContrast,
+						frequency: DefaultMoistureFrequency,
+					},
+				)
+
+				idx := (relativeY*chunkWidth + relativeX) * 3
+
+				terrainData[idx] = height
+				terrainData[idx+1] = temperature
+				terrainData[idx+2] = moisture
 			}
 		}
 
-		imageDataJS := js.Global().Get("Uint8Array").New(size)
-		js.CopyBytesToJS(imageDataJS, imageData)
+		terrainDataJS := js.Global().Get("Uint8Array").New(size)
+		js.CopyBytesToJS(terrainDataJS, terrainData)
 
-		return imageDataJS
+		return terrainDataJS
 	}))
 
 	<-make(chan bool)

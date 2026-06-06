@@ -1,8 +1,31 @@
+/// <reference lib="webworker" />
+
 declare class Go {
     importObject: WebAssembly.Imports;
     run(instance: WebAssembly.Instance): Promise<void>;
 }
 
+interface TerrainConfigGo {
+    seed: number;
+    width: number;
+    height: number;
+    scale: number;
+    contrast: number;
+    seaLevel: number;
+    offsetX: number;
+    offsetY: number;
+    startY: number;
+    endY: number;
+    startX: number;
+    endX: number;
+}
+
+type Generate = (config: TerrainConfigGo) => Uint8Array;
+
 interface Window {
-        generate: (seed?: number) => Uint8Array;
-    }
+    generate: Generate;
+}
+
+declare const self: DedicatedWorkerGlobalScope & {
+    generate: Generate;
+};
